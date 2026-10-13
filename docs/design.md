@@ -53,19 +53,20 @@
 
 ## 4. 에이전트 감지 규칙
 
-`ps -Axo args=` 의 각 줄에서 **첫 토큰(실행 파일)의 basename** 으로 매칭. 부분 문자열 매칭 금지
-(실측: Claude Code hook 은 `node -e "...'.claude'..."` 형태라 오탐 발생).
+`ps` 출력 파싱 대신 libproc(`proc_listpids(PROC_UID_ONLY)`, `proc_pidpath`, `sysctl(KERN_PROCARGS2)`)으로
+**현재 사용자 프로세스만** 수집한다. 신호를 여러 개 교차해 설치 방식에 상관없이 잡는다.
 
-| 에이전트 | 실행 파일 basename | node/bun 스크립트 경로 마커 |
-|----------|-------------------|---------------------------|
-| Claude Code | `claude` | `@anthropic-ai/claude-code` |
-| Codex CLI | `codex` | `@openai/codex` |
-| Gemini CLI | `gemini` | `@google/gemini-cli` |
-| Aider | `aider` | — |
-| OpenCode | `opencode` | `opencode-ai` |
+| 우선순위 | 신호 | 왜 필요한가 |
+|----------|------|-------------|
+| 1 | 실행 파일 basename | Homebrew·IDE 내장 바이너리 |
+| 2 | `argv[0]` basename | 네이티브 설치본은 실행 파일 이름이 `2.1.296` 같은 버전 번호 (실측) |
+| 3 | 실행 파일 경로의 설치 마커 | 전체 경로로 실행돼 `argv[0]` 도 버전 경로인 경우 |
+| 4 | node/bun/deno 의 스크립트 basename·패키지 마커 | npm 전역 설치(`node /opt/homebrew/bin/claude`), npx |
 
-- 대소문자 구분 → `/Applications/Claude.app/.../Claude` (데스크톱 앱) 은 제외
-- `node -e` / `--eval` 인라인 스크립트는 검사하지 않음
+- 대소문자 구분 → `Claude.app` 데스크톱 앱 제외
+- `node -e` / `--eval` 인라인 스크립트는 검사하지 않음 (hook 오탐 방지)
+- 사용자 지정: `customAgents` (이름 규칙 검증, 최대 16개)
+- 진단: `Bulchimbeon --diagnose` — 감지 결과와 근거만 출력 (인자 미출력)
 
 ### 에이전트 근무 상태 머신
 

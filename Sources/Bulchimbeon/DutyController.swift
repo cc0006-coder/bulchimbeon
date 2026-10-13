@@ -51,6 +51,7 @@ final class DutyController: ObservableObject {
         static let mode = "dutyMode"
         static let batteryFloor = "batteryFloor"
         static let lidEngagedByUs = "lidEngagedByUs"
+        static let customAgents = "customAgents"
     }
 
     private let defaults = UserDefaults.standard
@@ -189,8 +190,9 @@ final class DutyController: ObservableObject {
         ticking = true
         defer { ticking = false }
 
+        let customAgents = defaults.stringArray(forKey: Keys.customAgents) ?? []
         let (agents, battery) = await Task.detached {
-            (SystemProbes.agents(), SystemProbes.battery())
+            (SystemProbes.agents(custom: customAgents), SystemProbes.battery())
         }.value
         now = Date()
         self.agents = agents

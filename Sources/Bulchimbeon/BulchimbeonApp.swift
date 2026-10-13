@@ -9,6 +9,15 @@ struct BulchimbeonApp: App {
     @StateObject private var animator = SpriteAnimator()
     @StateObject private var patrol = PatrolController.shared
 
+    init() {
+        // Bulchimbeon.app/Contents/MacOS/Bulchimbeon --diagnose → 진단 출력 후 종료 (UI 없음)
+        if CommandLine.arguments.contains("--diagnose") {
+            let custom = UserDefaults.standard.stringArray(forKey: "customAgents") ?? []
+            print(ProcessScanner.diagnose(custom: custom))
+            exit(0)
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             DutyMenu(duty: duty, patrol: patrol)
