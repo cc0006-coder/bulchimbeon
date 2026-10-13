@@ -151,6 +151,10 @@ pmset -g assertions | grep Bulchimbeon   # 근무 중인지 확인
 - 프로세스 인자 원문은 저장·기록하지 않음
 - hardened runtime 서명, 릴리스 SHA-256 체크섬·빌드 출처 증명, SHA 고정 CI
 
+## 기여
+
+버그 신고(🚨 근무 태도 불량 신고), 에이전트 추가 요청, 대사·스프라이트 아이디어 모두 환영합니다 → [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## 주의
 
 덮개를 닫은 채 무거운 작업을 오래 돌리면 발열이 생긴다. 가능하면 전원을 연결하고 쓰자.

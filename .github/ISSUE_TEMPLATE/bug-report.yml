@@ -1,0 +1,65 @@
+name: "🚨 근무 태도 불량 신고 / Bug report"
+description: "이등병이 졸았거나, 근무를 안 섰거나, 이상하게 굴었나요? / The soldier misbehaved?"
+title: "[근무 태도 불량] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        신고 감사합니다! 당직사관이 확인하겠습니다 🫡
+        Thanks for reporting! The duty officer will look into it.
+
+        ⚠️ 보안 취약점은 여기 말고 [비공개 제보](https://github.com/s3onghyun/bulchimbeon/security/advisories/new)로 보내주세요.
+        Please report security issues privately via the link above, not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "무슨 일이 있었나요? / What happened?"
+      placeholder: "예) 에이전트가 끝났는데 근무 교대를 안 함 / e.g. Agents finished but it never handed over"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "기대한 동작 / Expected behavior"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: "근무 형태 / Watch mode"
+      options:
+        - "화면 켜둠 / Keep display on (caffeinate -d)"
+        - "화면은 꺼져도 맥은 깨어 있음 / Display may sleep (caffeinate -i)"
+        - "덮개 닫아도 깨어 있음 / Lid closed (admin)"
+        - "모름 / Not sure"
+  - type: input
+    id: version
+    attributes:
+      label: "불침번 버전 / App version"
+      description: "메뉴 하단 'v0.x.x' / Shown at the bottom of the menu"
+      placeholder: "v0.4.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: "macOS 버전·칩 / macOS version & chip"
+      placeholder: "macOS 26.1, Apple Silicon"
+    validations:
+      required: true
+  - type: textarea
+    id: diagnose
+    attributes:
+      label: "진단 출력 (에이전트 감지 문제일 때) / Diagnose output (for detection issues)"
+      description: |
+        `/Applications/Bulchimbeon.app/Contents/MacOS/Bulchimbeon --diagnose`
+        실행 파일 경로에 사용자 이름이 보이면 가려도 됩니다. 명령줄 인자는 출력되지 않습니다.
+        Feel free to redact your username in paths. Command-line arguments are never printed.
+      render: text
+  - type: textarea
+    id: log
+    attributes:
+      label: "근무일지 마지막 몇 줄 / Last lines of the duty log"
+      description: "`tail -20 ~/Library/Application\\ Support/Bulchimbeon/duty-log.txt`"
+      render: text
