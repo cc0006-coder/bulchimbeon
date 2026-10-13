@@ -99,6 +99,7 @@
 | v0.2 ✅ | 치비 이등병 픽셀아트 아이콘·애니메이션 (취침/대기/근무/경례 4포즈), 앱 아이콘 |
 | v0.3 ✅ | 순찰 모드 (화면 위 오버레이), 보안 강화 (SECURITY.md) |
 | v0.3.1 | 에이전트 **유휴 감지** (프로세스 생존이 아니라 CPU·출력 활동 기준) |
-| v0.4 | Privileged helper (`SMAppService.daemon`) 로 덮개 모드 암호 프롬프트 제거 |
+| v0.5 ✅ | 폭염 주의보·전투휴식, 근무지 이탈 감지, 당직 감시병(덮개 모드 원복 watchdog), 당직 근무 인수인계 |
+| v0.6 | Privileged helper (`SMAppService.daemon`) 로 덮개 모드 암호 프롬프트 제거 |
 | v0.5 | 해금 스킨: 순라꾼(조선시대 불침번), 선비(현량자고) / 당직사관 이스터에그 |
 | v1.0 | Homebrew cask 배포, 공증(notarization) |

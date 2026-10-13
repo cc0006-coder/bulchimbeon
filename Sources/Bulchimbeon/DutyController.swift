@@ -41,6 +41,9 @@ final class DutyController: ObservableObject {
     @Published private(set) var agents: [AgentKind: Int] = [:]
     @Published private(set) var battery: BatteryStatus?
     @Published private(set) var lidSleepDisabled = false
+    @Published private(set) var heat: HeatLevel = .normal
+    /// 폭염 경보로 근무를 잠시 멈춘 상태 (식으면 자동 복귀)
+    @Published private(set) var resting = false
     @Published private(set) var now = Date()
     @Published private(set) var quote = Lines.pick(Lines.off())
     @Published private(set) var mode: DutyMode {
@@ -57,6 +60,7 @@ final class DutyController: ObservableObject {
         static let customAgents = "customAgents"
         static let order = "dutyOrder"
         static let orderUntil = "dutyOrderUntil"
+        static let simulateHeat = "simulateHeat"
     }
 
     private let defaults = UserDefaults.standard
@@ -73,6 +77,10 @@ final class DutyController: ObservableObject {
     private var lastAgentSummary = ""
     private var ticking = false
     private var lastScan = Date.distantPast
+    private var heatAdvised = false
+    private var coolSince: Date?
+    /// 화면이 잠긴 시각 (당직 근무 인수인계용)
+    private var lockedAt: Date?
     private var timer: Timer?
 
     /// 덮개 플래그를 이 앱이 켰는지. 비정상 종료 후 복구 판단용으로 영속화한다.
@@ -88,9 +96,20 @@ final class DutyController: ObservableObject {
         batteryFloor = Self.batteryFloors.contains(storedFloor) ? storedFloor : 20
         lidSleepDisabled = SystemProbes.lidSleepDisabled()
 
+        if !lidSleepDisabled && lidEngagedByUs {
+            lidEngagedByUs = false // 당직 감시병이 이미 원복함
+        }
         if lidSleepDisabled && lidEngagedByUs {
             writeLog(L10n.t("⚠️ 지난 근무 비정상 종료 — 덮개 잠자기가 꺼진 채 남아 있음", "⚠️ Last watch ended abnormally — lid sleep still disabled"))
             notifier.send(Lines.lidLeftOn())
+        }
+
+        let center = DistributedNotificationCenter.default()
+        center.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { DutyController.shared.screenLocked() }
+        }
+        center.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { DutyController.shared.screenUnlocked() }
         }
 
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -106,6 +125,7 @@ final class DutyController: ObservableObject {
 
     var pose: Sprites.Pose {
         if let demoPose { return demoPose }
+        if resting { return .heat }
         if let saluteUntil, Date() < saluteUntil { return .salute }
         if isOnDuty { return .duty }
         return order == .agentWatch ? .standby : .sleeping
@@ -127,6 +147,9 @@ final class DutyController: ObservableObject {
     }
 
     var statusLine: String {
+        if resting {
+            return L10n.t("전투휴식 중 (폭염 경보) — 식으면 복귀", "Combat rest (heat warning) — resumes when cool")
+        }
         if isOnDuty, let remainingText {
             return L10n.t("근무 중 · \(remainingText) 남음", "On duty · \(remainingText) left")
         }
@@ -147,6 +170,14 @@ final class DutyController: ObservableObject {
         battery.map { "🔋 \($0.percent)%" + ($0.onBattery ? "" : L10n.t(" (전원 연결)", " (charging)")) }
     }
 
+    var heatLine: String? {
+        switch heat {
+        case .advisory: L10n.t("🌡️ 폭염 주의보", "🌡️ Heat advisory")
+        case .alert: L10n.t("🔥 폭염 경보", "🔥 Heat warning")
+        case .normal, .caution: nil
+        }
+    }
+
     var recentLog: [DutyLogEntry] { Array(log.recent.prefix(10)) }
     var logFileURL: URL? { DutyLog.defaultFileURL }
 
@@ -163,7 +194,7 @@ final class DutyController: ObservableObject {
         notifier.send(Lines.reportForDuty())
         say(Lines.Speech.reporting())
         let length = Self.durations.first { $0.seconds == duration }?.title ?? L10n.t("무기한", "Indefinitely")
-        writeLog(L10n.t("근무 투입 — \(length), \(mode.title)", "On duty — \(length), \(mode.title)"))
+        writeLog(L10n.t("근무 투입 — \(length), \(mode.title)", "On duty — \(length), \(mode.title)"), kind: .onDuty)
     }
 
     func startAgentWatch() async {
@@ -207,9 +238,25 @@ final class DutyController: ObservableObject {
     /// 앱 종료 시 동기 정리. 덮개 플래그는 반드시 되돌린다.
     func shutdown() {
         assertion.release()
-        if lidEngagedByUs && SystemProbes.setLidSleepDisabled(false) {
-            lidEngagedByUs = false
-        }
+        guard lidEngagedByUs else { return }
+        // 당직 감시병이 살아 있으면 종료 후 5초 안에 원복하므로 암호 창을 띄우지 않는다
+        if SystemProbes.lidWatchdogAlive() { return }
+        if SystemProbes.setLidSleepDisabled(false) { lidEngagedByUs = false }
+    }
+
+    // MARK: - 당직 근무 인수인계
+
+    func screenLocked() {
+        lockedAt = Date()
+    }
+
+    func screenUnlocked() {
+        defer { lockedAt = nil }
+        guard let lockedAt,
+              let report = HandoverReport.make(entries: log.recent, awayFrom: lockedAt, until: Date())
+        else { return }
+        notifier.send(report)
+        say(Lines.Speech.handoverReport(), seconds: 6)
     }
 
     /// 녹화용 연출: 대기 → 출근 → 순찰 → 교대 경례 → 취침
@@ -309,6 +356,48 @@ final class DutyController: ObservableObject {
             return
         }
 
+        // 폭염 대응
+        heat = currentHeat()
+        if heat <= .caution {
+            if coolSince == nil { coolSince = now }
+            heatAdvised = false
+        } else {
+            coolSince = nil
+        }
+        switch HeatPolicy.decide(level: heat, onDuty: isOnDuty, resting: resting, advised: heatAdvised,
+                                 coolSince: coolSince, now: now) {
+        case .advisory:
+            heatAdvised = true
+            notifier.send(Lines.heatAdvisory())
+            say(Lines.Speech.heat(), seconds: 6)
+            writeLog(L10n.t("폭염 주의보 발령", "Heat advisory"), kind: .heat)
+        case .rest:
+            resting = true
+            await disengage()
+            notifier.send(Lines.heatRest())
+            say(Lines.Speech.rest(), seconds: 8)
+            writeLog(L10n.t("폭염 경보 — 전투휴식 실시", "Heat warning — combat rest"), kind: .heat)
+        case .resume:
+            resting = false
+            let lidDowngraded = mode == .lid
+            if lidDowngraded { mode = .system } // 과열 직후엔 덮개 근무로 돌아가지 않는다
+            notifier.send(Lines.heatResume(lidDowngraded: lidDowngraded))
+            say(Lines.Speech.backFromRest(), seconds: 6)
+            writeLog(L10n.t("전투휴식 종료 — 근무 복귀", "Combat rest over — back on watch"), kind: .onDuty)
+            if case .timed = order { await engage() } // 에이전트 근무는 아래에서 다시 판단
+        case .none:
+            break
+        }
+        if resting { return }
+
+        // 근무지 이탈 감지: 들고 있어야 할 assertion 이 사라졌으면 즉시 재투입
+        if isOnDuty && !assertion.isActuallyHeld() {
+            assertion.reacquire()
+            notifier.send(Lines.postAbandoned())
+            say(Lines.Speech.notAWOL(), seconds: 6)
+            writeLog(L10n.t("⚠️ 근무지 이탈 감지 — 즉시 재투입", "⚠️ Post abandoned — re-engaged"), kind: .awol)
+        }
+
         switch order {
         case .off:
             break
@@ -323,19 +412,19 @@ final class DutyController: ObservableObject {
             if present { lastAgentSummary = AgentCatalog.summary(agents) }
 
             switch AgentWatchPolicy.decide(agentsPresent: present, onDuty: isOnDuty,
-                                           lowBattery: BatteryPolicy.shouldRetreat(battery, floor: floor)) {
+                                           lowBattery: BatteryPolicy.shouldRetreat(battery, floor: floor) || heat >= .alert) {
             case .engage:
                 await engage()
                 notifier.send(Lines.agentArrived(lastAgentSummary))
                 say(Lines.Speech.arrived())
-                writeLog(L10n.t("근무 투입 — \(lastAgentSummary) 출근", "On duty — \(lastAgentSummary) clocked in"))
+                writeLog(L10n.t("근무 투입 — \(lastAgentSummary) 출근", "On duty — \(lastAgentSummary) clocked in"), kind: .onDuty)
             case .handover:
                 await disengage()
                 quote = Lines.pick(Lines.standby())
                 saluteUntil = Date().addingTimeInterval(10)
                 notifier.send(Lines.handover(lastAgentSummary))
                 say(Lines.Speech.handover(), seconds: 8)
-                writeLog(L10n.t("근무 교대 — \(lastAgentSummary) 작업 종료, 이상 무", "Shift over — \(lastAgentSummary) finished, all clear"))
+                writeLog(L10n.t("근무 교대 — \(lastAgentSummary) 작업 종료, 이상 무", "Shift over — \(lastAgentSummary) finished, all clear"), kind: .handover)
             case .none:
                 break
             }
@@ -370,14 +459,23 @@ final class DutyController: ObservableObject {
 
     private func standDown(notice: (title: String, body: String)?, logText: String) async {
         await disengage()
+        resting = false
         order = .off
         quote = Lines.pick(Lines.off())
         if let notice { notifier.send(notice) }
-        writeLog(logText)
+        writeLog(logText, kind: .standDown)
     }
 
-    private func writeLog(_ text: String) {
-        log.write(text)
+    /// 실제 발열 단계. `defaults write ... simulateHeat advisory|alert|normal` 로 시험할 수 있다 (지우면 실제 값).
+    private func currentHeat() -> HeatLevel {
+        if let name = defaults.string(forKey: Keys.simulateHeat), let simulated = HeatLevel(name: name) {
+            return simulated
+        }
+        return HeatLevel(ProcessInfo.processInfo.thermalState)
+    }
+
+    private func writeLog(_ text: String, kind: DutyLogEntry.Kind = .other) {
+        log.write(text, kind: kind)
         objectWillChange.send()
     }
 }

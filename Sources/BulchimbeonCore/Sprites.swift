@@ -77,6 +77,7 @@ public enum Sprites {
         case duty     // 🪖 근무 중 — 손전등 깜빡
         case salute   // 🫡 근무 교대
         case patrol   // 🚶 순찰 — 오른쪽을 보고 걷기 (왼쪽은 mirrored)
+        case heat     // 🥵 폭염 — 땀 뻘뻘, 전투휴식
     }
 
     public static func frames(_ pose: Pose) -> [PixelSprite] {
@@ -87,6 +88,7 @@ public enum Sprites {
         case .duty: [dutyBeam, dutyBeam, dutyBeam, dutyDark]
         case .salute: [salute, salute, saluteSparkle, saluteSparkle]
         case .patrol: [walkA, walkB]
+        case .heat: [heatA, heatB]
         }
     }
 
@@ -130,6 +132,10 @@ public enum Sprites {
         "....KUUKKUUK....",
         "....KBBKKBBK....",
     ])
+
+    // 폭염: 감은 눈 + 땀방울이 흘러내림
+    static let heatA = sleepingB.placing(PixelSprite(["Z"]), x: 1, y: 6).placing(PixelSprite(["Z"]), x: 13, y: 5)
+    static let heatB = sleepingB.placing(PixelSprite(["Z"]), x: 1, y: 8).placing(PixelSprite(["Z"]), x: 13, y: 7)
 
     static let dutyDark = PixelSprite(helmet + face(eyes: eyesFront) + [
         "...KUUUuUUUK....",

@@ -2,8 +2,17 @@ import Darwin
 import Foundation
 
 public struct DutyLogEntry: Equatable, Sendable {
+    public enum Kind: Sendable { case onDuty, handover, standDown, heat, awol, other }
+
     public let date: Date
     public let text: String
+    public var kind: Kind = .other
+
+    public init(date: Date, text: String, kind: Kind = .other) {
+        self.date = date
+        self.text = text
+        self.kind = kind
+    }
 
     public var line: String {
         "\(DutyLogEntry.formatter.string(from: date))  \(text)"
@@ -41,8 +50,8 @@ public final class DutyLog {
             .appendingPathComponent("duty-log.txt")
     }
 
-    public func write(_ text: String, at date: Date = Date()) {
-        let entry = DutyLogEntry(date: date, text: text)
+    public func write(_ text: String, kind: DutyLogEntry.Kind = .other, at date: Date = Date()) {
+        let entry = DutyLogEntry(date: date, text: text, kind: kind)
         recent.insert(entry, at: 0) // 최신순
         if recent.count > capacity { recent.removeLast(recent.count - capacity) }
         append(entry)

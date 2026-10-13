@@ -298,3 +298,110 @@ import Testing
         #expect(Lines.off(.ko).count == Lines.off(.en).count)
     }
 }
+
+@Suite struct HeatTests {
+    private let now = Date(timeIntervalSince1970: 1_000_000)
+
+    @Test func mapsThermalState() {
+        #expect(HeatLevel(ProcessInfo.ThermalState.nominal) == .normal)
+        #expect(HeatLevel(ProcessInfo.ThermalState.fair) == .caution)
+        #expect(HeatLevel(ProcessInfo.ThermalState.serious) == .advisory)
+        #expect(HeatLevel(ProcessInfo.ThermalState.critical) == .alert)
+        #expect(HeatLevel(name: "alert") == .alert)
+        #expect(HeatLevel(name: "; rm -rf /") == nil)
+    }
+
+    @Test func advisoryOnceThenRest() {
+        #expect(HeatPolicy.decide(level: .advisory, onDuty: true, resting: false, advised: false, coolSince: nil, now: now) == .advisory)
+        #expect(HeatPolicy.decide(level: .advisory, onDuty: true, resting: false, advised: true, coolSince: nil, now: now) == .none, "주의보는 한 번만")
+        #expect(HeatPolicy.decide(level: .alert, onDuty: true, resting: false, advised: true, coolSince: nil, now: now) == .rest)
+        #expect(HeatPolicy.decide(level: .alert, onDuty: false, resting: false, advised: false, coolSince: nil, now: now) == .none, "근무 중이 아니면 쉴 것도 없음")
+        #expect(HeatPolicy.decide(level: .caution, onDuty: true, resting: false, advised: false, coolSince: nil, now: now) == .none)
+    }
+
+    @Test func resumeOnlyAfterCoolDown() {
+        let justCooled = now.addingTimeInterval(-30)
+        let longCooled = now.addingTimeInterval(-HeatPolicy.coolDown)
+        #expect(HeatPolicy.decide(level: .normal, onDuty: false, resting: true, advised: true, coolSince: justCooled, now: now) == .none, "식은 지 30초는 이름")
+        #expect(HeatPolicy.decide(level: .normal, onDuty: false, resting: true, advised: true, coolSince: longCooled, now: now) == .resume)
+        #expect(HeatPolicy.decide(level: .advisory, onDuty: false, resting: true, advised: true, coolSince: longCooled, now: now) == .none, "아직 덥다")
+    }
+}
+
+@Suite struct LidWatchdogTests {
+    @Test func commandsAreSafeToEmbed() {
+        for cmd in [LidCommands.enable(pid: 4321), LidCommands.disable(pid: 4321)] {
+            // AppleScript 문자열 안에 그대로 들어가므로 큰따옴표·역슬래시가 없어야 한다
+            #expect(!cmd.contains("\"") && !cmd.contains("\\"))
+            #expect(cmd.contains("4321"))
+        }
+        #expect(LidCommands.enable(pid: 1).contains("disablesleep 1"))
+        #expect(LidCommands.disable(pid: 1).contains("disablesleep 0"))
+    }
+
+    @Test func pkillPatternDoesNotMatchItself() throws {
+        // disable 명령을 실행하는 셸 자신의 명령줄이 패턴에 걸리면 pkill 이 자기 부모를 죽인다
+        let pattern = LidCommands.watchdogPattern(pid: 4321)
+        let regex = try Regex(pattern)
+        #expect(LidCommands.disable(pid: 4321).contains(regex) == false)
+        #expect(LidCommands.enable(pid: 4321).contains(regex), "감시병 명령줄은 매칭돼야 한다")
+    }
+
+    /// root 없이 실제로 돌려본다: 가짜 pmset + 가짜 앱 프로세스(sleep). 앱이 죽으면 감시병이 원복해야 한다.
+    @Test func watchdogRestoresWhenAppDies() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let log = dir.appendingPathComponent("pmset.log")
+        let fakePmset = dir.appendingPathComponent("pmset")
+        try "#!/bin/sh\necho \"$@\" >> '\(log.path)'\n".write(to: fakePmset, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakePmset.path)
+
+        let app = Process()
+        app.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        app.arguments = ["60"]
+        try app.run()
+
+        let shell = Process()
+        shell.executableURL = URL(fileURLWithPath: "/bin/sh")
+        shell.arguments = ["-c", LidCommands.enable(pid: app.processIdentifier, pmset: fakePmset.path)]
+        try shell.run()
+        shell.waitUntilExit()
+        #expect(shell.terminationStatus == 0)
+
+        try await Task.sleep(for: .seconds(1))
+        #expect(try String(contentsOf: log, encoding: .utf8) == "-a disablesleep 1\n", "켜기만 실행됨")
+
+        app.terminate() // 앱 강제 종료
+        app.waitUntilExit()
+        var restored = false
+        for _ in 0..<16 { // 감시 주기 5초 + 여유
+            try await Task.sleep(for: .milliseconds(500))
+            if (try? String(contentsOf: log, encoding: .utf8))?.contains("disablesleep 0") == true { restored = true; break }
+        }
+        #expect(restored, "앱이 죽은 뒤 감시병이 disablesleep 0 을 실행해야 한다")
+    }
+}
+
+@Suite struct HandoverReportTests {
+    private let t0 = Date(timeIntervalSince1970: 1_000_000)
+
+    private func entry(_ minutes: Double, _ kind: DutyLogEntry.Kind, _ text: String = "x") -> DutyLogEntry {
+        DutyLogEntry(date: t0.addingTimeInterval(minutes * 60), text: text, kind: kind)
+    }
+
+    @Test func summarizesNightWatch() throws {
+        let entries = [entry(5, .onDuty), entry(190, .handover, "근무 교대 — Claude Code"), entry(60, .heat), entry(400, .other)]
+        let report = try #require(HandoverReport.make(entries: entries, awayFrom: t0, until: t0.addingTimeInterval(8 * 3600), .ko))
+        #expect(report.title.contains("인수인계"))
+        #expect(report.body.contains("근무 투입 1회") && report.body.contains("근무 교대 1회") && report.body.contains("폭염 1회"))
+        #expect(report.body.contains("근무 교대 — Claude Code"), "마지막 의미 있는 사건")
+        let en = try #require(HandoverReport.make(entries: entries, awayFrom: t0, until: t0.addingTimeInterval(8 * 3600), .en))
+        #expect(en.title == "Night watch handover 📋")
+    }
+
+    @Test func noReportForShortBreaksOrQuietNights() {
+        #expect(HandoverReport.make(entries: [entry(1, .onDuty)], awayFrom: t0, until: t0.addingTimeInterval(5 * 60), .ko) == nil, "커피 타임")
+        #expect(HandoverReport.make(entries: [entry(30, .other)], awayFrom: t0, until: t0.addingTimeInterval(3600), .ko) == nil, "보고할 일 없음")
+        #expect(HandoverReport.make(entries: [entry(-10, .onDuty)], awayFrom: t0, until: t0.addingTimeInterval(3600), .ko) == nil, "자리 비우기 전 일")
+    }
+}

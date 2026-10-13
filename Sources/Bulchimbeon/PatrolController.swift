@@ -131,7 +131,7 @@ final class PatrolController: ObservableObject {
             let move = walkSpeed * CGFloat(dt)
             x = abs(cornerX - x) <= move ? cornerX : x + (facingRight ? move : -move)
             sprite = walkFrame()
-        case .standby, .salute, .patrol, .sleeping:
+        case .standby, .salute, .patrol, .sleeping, .heat:
             sprite = frame(of: duty.pose, interval: 0.5)
         }
 

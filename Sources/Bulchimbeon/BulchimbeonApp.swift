@@ -118,6 +118,7 @@ struct DutyMenu: View {
 
         Text(duty.agentLine)
         if let batteryLine = duty.batteryLine { Text(batteryLine) }
+        if let heatLine = duty.heatLine { Text(heatLine) }
         Menu(L10n.t("📒 근무일지", "📒 Duty log")) {
             if duty.recentLog.isEmpty {
                 Text(L10n.t("기록 없음", "No entries"))

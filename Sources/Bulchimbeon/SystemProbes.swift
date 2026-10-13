@@ -35,14 +35,23 @@ enum SystemProbes {
 
     /// `pmset -a disablesleep` 변경. 관리자 암호 프롬프트가 뜬다. 취소하면 false.
     ///
-    /// 보안: 스크립트에 들어가는 가변 값은 Bool 에서 나온 "0"/"1" 뿐이라 셸 인젝션 여지가 없다.
+    /// 보안: 명령에 들어가는 가변 값은 이 앱의 PID(정수)와 Bool 뿐이라 셸 인젝션 여지가 없다.
+    /// 켤 때는 "당직 감시병"(LidCommands.enable)을 함께 띄워, 앱이 강제 종료돼도 5초 안에 원복된다.
     /// 프롬프트에 실행할 명령을 그대로 보여줘, 사용자가 무엇에 암호를 주는지 알 수 있게 한다.
     static func setLidSleepDisabled(_ disabled: Bool) -> Bool {
-        let command = "/usr/bin/pmset -a disablesleep \(disabled ? 1 : 0)"
+        let pid = getpid()
+        let command = disabled ? LidCommands.enable(pid: pid) : LidCommands.disable(pid: pid)
+        let shown = "/usr/bin/pmset -a disablesleep \(disabled ? 1 : 0)"
+            + (disabled ? L10n.t(" (+ 앱 종료 시 자동 원복 감시)", " (+ auto-restore watchdog)") : "")
         let prompt = L10n.t("불침번이 덮개 잠자기 설정을 바꾸려 합니다.\n실행 명령: ",
-                            "Bulchimbeon wants to change the lid sleep setting.\nCommand: ") + command
+                            "Bulchimbeon wants to change the lid sleep setting.\nCommand: ") + shown
         let script = "do shell script \"\(command)\" with prompt \"\(prompt)\" with administrator privileges"
         return run("/usr/bin/osascript", ["-e", script]) != nil
+    }
+
+    /// 이 앱의 당직 감시병(root)이 살아 있는지
+    static func lidWatchdogAlive() -> Bool {
+        run("/usr/bin/pgrep", ["-f", LidCommands.watchdogPattern(pid: getpid())]) != nil
     }
 
     /// 실행 후 stdout 반환. 종료 코드가 0이 아니면 nil.

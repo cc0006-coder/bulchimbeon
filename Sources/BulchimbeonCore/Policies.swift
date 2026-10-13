@@ -81,3 +81,83 @@ public enum DutyResume {
         }
     }
 }
+
+/// 맥 발열 단계. 군대 온도지수 단계에 빗댄다.
+public enum HeatLevel: Int, Comparable, Sendable {
+    case normal = 0  // 정상
+    case caution     // 관심 — 조치 없음
+    case advisory    // 폭염 주의보 — 경고만
+    case alert       // 폭염 경보 — 전투휴식 (근무 중단)
+
+    public init(_ state: ProcessInfo.ThermalState) {
+        switch state {
+        case .nominal: self = .normal
+        case .fair: self = .caution
+        case .serious: self = .advisory
+        case .critical: self = .alert
+        @unknown default: self = .alert // 모르는 단계는 안전한 쪽으로
+        }
+    }
+
+    /// 디버그용 문자열 (`defaults write ... simulateHeat advisory`)
+    public init?(name: String) {
+        switch name {
+        case "normal": self = .normal
+        case "caution": self = .caution
+        case "advisory": self = .advisory
+        case "alert": self = .alert
+        default: return nil
+        }
+    }
+
+    public static func < (lhs: HeatLevel, rhs: HeatLevel) -> Bool { lhs.rawValue < rhs.rawValue }
+}
+
+/// 폭염 대응 판단.
+public enum HeatPolicy {
+    public enum Action: Equatable {
+        case none
+        case advisory   // 주의보 발령 (경고만)
+        case rest       // 경보 → 전투휴식 시작
+        case resume     // 충분히 식음 → 근무 복귀
+    }
+
+    /// 열이 내린 뒤 이 시간만큼 유지돼야 복귀 (오락가락 방지)
+    public static let coolDown: TimeInterval = 120
+
+    public static func decide(level: HeatLevel, onDuty: Bool, resting: Bool, advised: Bool,
+                              coolSince: Date?, now: Date) -> Action {
+        if resting {
+            guard level <= .caution, let coolSince else { return .none }
+            return now.timeIntervalSince(coolSince) >= coolDown ? .resume : .none
+        }
+        guard onDuty else { return .none }
+        if level >= .alert { return .rest }
+        if level == .advisory && !advised { return .advisory }
+        return .none
+    }
+}
+
+/// 덮개 모드 관리자 명령. 가변 값은 정수 PID 뿐이라 셸 인젝션 여지가 없다.
+///
+/// 켤 때 "당직 감시병"을 함께 띄운다: 앱(PID)이 사라지면 5초 안에 `disablesleep 0` 으로 되돌리는
+/// root 백그라운드 셸. 스크립트는 파일이 아닌 인라인 문자열 — 사용자 권한으로 수정 가능한 파일을
+/// root 로 실행하면 권한 상승 통로가 되기 때문.
+public enum LidCommands {
+    static func marker(_ pid: Int32) -> String { "bulchimbeon-watchdog-\(pid)" }
+
+    /// 자기 자신(이 명령을 실행하는 셸)과 매칭되지 않도록 `[g]` 정규식 트릭을 쓴다.
+    static func markerPattern(_ pid: Int32) -> String { "bulchimbeon-watchdo[g]-\(pid)" }
+
+    public static func enable(pid: Int32, pmset: String = "/usr/bin/pmset") -> String {
+        let watch = ": \(marker(pid)); while /bin/kill -0 \(pid) 2>/dev/null; do /bin/sleep 5; done; \(pmset) -a disablesleep 0"
+        return "\(pmset) -a disablesleep 1 && /usr/bin/nohup /bin/sh -c '\(watch)' >/dev/null 2>&1 &"
+    }
+
+    public static func disable(pid: Int32, pmset: String = "/usr/bin/pmset") -> String {
+        "\(pmset) -a disablesleep 0; /usr/bin/pkill -f '\(markerPattern(pid))'; true"
+    }
+
+    /// 감시병이 살아 있는지 확인할 때 쓰는 `pgrep -f` 패턴
+    public static func watchdogPattern(pid: Int32) -> String { markerPattern(pid) }
+}

@@ -74,6 +74,33 @@ public enum Lines {
             : ("Lid sleep is still disabled ⚠️", "The last watch ended abnormally. Choose 'Restore lid sleep' from the menu.")
     }
 
+    public static func heatAdvisory(_ lang: Language = L10n.language) -> Notice {
+        lang == .ko
+            ? ("폭염 주의보 🌡️", "맥이 뜨거워지고 있습니다. 그늘에서 물 마시며 근무 중입니다!")
+            : ("Heat advisory 🌡️", "Your Mac is heating up. Staying hydrated on watch!")
+    }
+
+    public static func heatRest(_ lang: Language = L10n.language) -> Notice {
+        lang == .ko
+            ? ("폭염 경보 🔥 전투휴식 실시!", "맥을 식히는 동안 근무를 잠시 중단합니다. 열이 내리면 자동으로 복귀합니다.")
+            : ("Heat warning 🔥 Combat rest!", "Pausing the watch so your Mac can cool down. I'll resume automatically.")
+    }
+
+    public static func heatResume(lidDowngraded: Bool, _ lang: Language = L10n.language) -> Notice {
+        let extra = lidDowngraded
+            ? L10n.t(" 과열 직후라 덮개 근무 대신 시스템 근무로 복귀합니다.", " Resuming as system watch instead of lid-closed, to be safe.", lang)
+            : ""
+        return lang == .ko
+            ? ("전투휴식 종료 🫡", "열이 내렸습니다. 근무 복귀합니다!" + extra)
+            : ("Combat rest over 🫡", "Cooled down. Back on watch!" + extra)
+    }
+
+    public static func postAbandoned(_ lang: Language = L10n.language) -> Notice {
+        lang == .ko
+            ? ("근무지 이탈 감지 ⚠️", "잠자기 방지가 풀려 있어 즉시 재투입했습니다.")
+            : ("Post abandoned? ⚠️", "The sleep block was released, so I re-engaged immediately.")
+    }
+
     /// 순찰 이등병 말풍선
     public enum Speech {
         public static func reporting(_ lang: Language = L10n.language) -> String { L10n.t("근무 서겠습니다! 🫡", "Reporting for duty! 🫡", lang) }
@@ -81,6 +108,11 @@ public enum Lines {
         public static func handover(_ lang: Language = L10n.language) -> String { L10n.t("근무 교대합니다! 🫡", "Shift over! 🫡", lang) }
         public static func timeUp(_ lang: Language = L10n.language) -> String { L10n.t("근무 끝! 충성! 🫡", "Watch over! Salute! 🫡", lang) }
         public static func resumed(_ lang: Language = L10n.language) -> String { L10n.t("근무 복귀했습니다! 🫡", "Back on watch! 🫡", lang) }
+        public static func heat(_ lang: Language = L10n.language) -> String { L10n.t("폭염 주의보! 물 마시는 중 🥵", "Heat advisory! Hydrating 🥵", lang) }
+        public static func rest(_ lang: Language = L10n.language) -> String { L10n.t("전투휴식! 열 식히는 중 🧊", "Combat rest! Cooling down 🧊", lang) }
+        public static func backFromRest(_ lang: Language = L10n.language) -> String { L10n.t("전투휴식 끝! 근무 복귀 🫡", "Rest over! Back on post 🫡", lang) }
+        public static func notAWOL(_ lang: Language = L10n.language) -> String { L10n.t("근무지 이탈 아닙니다! 복귀! 🫡", "Not AWOL! Back on post! 🫡", lang) }
+        public static func handoverReport(_ lang: Language = L10n.language) -> String { L10n.t("인수인계 드리겠습니다! 📋", "Handover report! 📋", lang) }
         public static func waiting(_ lang: Language = L10n.language) -> String { L10n.t("에이전트 출근 기다리는 중 👀", "Waiting for agents 👀", lang) }
     }
 
