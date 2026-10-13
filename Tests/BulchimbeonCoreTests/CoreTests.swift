@@ -93,3 +93,30 @@ import Testing
         #expect(text.split(separator: "\n").count == 2)
     }
 }
+
+@Suite struct SpriteTests {
+    @Test(arguments: Sprites.Pose.allCases)
+    func framesAre16x16WithKnownColors(pose: Sprites.Pose) {
+        for frame in Sprites.frames(pose) {
+            #expect(frame.height == 16)
+            for row in frame.rows {
+                #expect(row.count == 16, "행 길이 불일치: \(row)")
+                for ch in row where ch != "." {
+                    #expect(Palette.cgColor(ch) != nil, "팔레트에 없는 문자 '\(ch)'")
+                }
+            }
+        }
+    }
+
+    @Test func appIconSceneIsSquare() {
+        let scene = Sprites.appIconScene
+        #expect(scene.height == 24)
+        #expect(scene.rows.allSatisfy { $0.count == 24 })
+    }
+
+    @Test func placingOverlaysOnlyOpaquePixels() {
+        let base = PixelSprite(["...", "..."])
+        let result = base.placing(PixelSprite(["K.", "YK"]), x: 1, y: 0)
+        #expect(result.rows == [".K.", ".YK"])
+    }
+}

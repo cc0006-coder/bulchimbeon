@@ -14,6 +14,7 @@ let package = Package(
             dependencies: ["BulchimbeonCore"],
             linkerSettings: [.linkedFramework("IOKit"), .linkedFramework("ServiceManagement")]
         ),
+        .executableTarget(name: "IconGen", dependencies: ["BulchimbeonCore"]),
         .testTarget(name: "BulchimbeonCoreTests", dependencies: ["BulchimbeonCore"]),
     ]
 )

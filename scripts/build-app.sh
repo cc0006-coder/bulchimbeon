@@ -9,16 +9,17 @@ VERSION="${VERSION:-0.1.0}"
 APP="dist/Bulchimbeon.app"
 
 if [[ "${UNIVERSAL:-0}" == "1" ]]; then
-  swift build -c release --arch arm64 --arch x86_64
+  swift build -c release --product Bulchimbeon --arch arm64 --arch x86_64
   BIN=".build/apple/Products/Release/Bulchimbeon"
 else
-  swift build -c release
+  swift build -c release --product Bulchimbeon
   BIN="$(swift build -c release --show-bin-path)/Bulchimbeon"
 fi
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Bulchimbeon"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 sed "s/__VERSION__/$VERSION/g" Resources/Info.plist > "$APP/Contents/Info.plist"
 
 codesign --force --sign - "$APP"

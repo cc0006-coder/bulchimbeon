@@ -6,14 +6,30 @@ import SwiftUI
 struct BulchimbeonApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var duty = DutyController.shared
+    @StateObject private var animator = SpriteAnimator()
 
     var body: some Scene {
         MenuBarExtra {
             DutyMenu(duty: duty)
         } label: {
-            Text(duty.menuBarTitle)
+            MenuBarLabel(duty: duty, animator: animator)
         }
         .menuBarExtraStyle(.menu)
+    }
+}
+
+struct MenuBarLabel: View {
+    @ObservedObject var duty: DutyController
+    @ObservedObject var animator: SpriteAnimator
+
+    var body: some View {
+        let frames = SpriteImages.frames(duty.pose)
+        HStack(spacing: 3) {
+            Image(nsImage: frames[animator.tick % frames.count])
+            if let remaining = duty.remainingText {
+                Text(remaining).monospacedDigit()
+            }
+        }
     }
 }
 

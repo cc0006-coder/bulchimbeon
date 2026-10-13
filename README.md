@@ -3,12 +3,14 @@
 > **Your Mac's night-watch soldier.**
 > 내가 자는 동안 AI 에이전트 곁에서 맥을 깨워두고, 일이 끝나면 "근무 교대합니다!" 하고 재워주는 메뉴바 이등병.
 
-```
-💤  취침 중            → 아무것도 안 함
-👀  에이전트 근무 대기   → Claude Code / Codex 출근을 감시
-🪖  근무 중            → 맥이 잠들지 않음
-🫡  근무 교대합니다!     → 에이전트 작업 끝, 다시 잠잘 수 있음
-```
+![불침번 스프라이트](docs/sprites-preview.png)
+
+| 상태 | 이등병 | 언제 |
+|------|--------|------|
+| 💤 취침 | 방탄모 쓰고 꾸벅, zzz | 근무 없음 |
+| 👀 근무 대기 | 두리번두리번 | 에이전트 출근 감시 중 |
+| 🪖 근무 중 | 손전등 깜빡이며 경계 | 맥이 잠들지 않음 |
+| 🫡 근무 교대 | `^ ^` 충성! 경례 | 에이전트 작업 끝 / 근무 시간 종료 |
 
 ## 왜 만들었나
 
@@ -40,6 +42,7 @@ Xcode 없이 Command Line Tools 만 있으면 된다. (macOS 13+)
 make app        # dist/Bulchimbeon.app 생성 (ad-hoc 서명)
 make run        # 빌드 후 실행
 make test       # 단위 테스트
+make icons      # 스프라이트 수정 후 앱 아이콘·미리보기 재생성
 
 # 실행과 동시에 에이전트 근무 시작
 open dist/Bulchimbeon.app --args --agent-watch
@@ -61,11 +64,14 @@ open dist/Bulchimbeon.app --args --agent-watch
 pmset -g assertions | grep Bulchimbeon   # 근무 중인지 확인
 ```
 
+스프라이트는 `Sources/BulchimbeonCore/Sprites.swift` 의 ASCII 그리드다. 문자 하나가 픽셀 하나이고,
+메뉴바(1pt=1px)와 1024px 앱 아이콘을 같은 원본에서 벡터 사각형으로 그려 어느 크기에서도 선명하다.
+
 설계 상세: [docs/design.md](docs/design.md)
 
 ## 로드맵
 
-- [ ] 치비 이등병 픽셀아트 아이콘·애니메이션
+- [x] 치비 이등병 픽셀아트 아이콘·애니메이션
 - [ ] 에이전트 **유휴 감지** (프로세스 생존이 아니라 실제 작업 중인지)
 - [ ] Privileged helper 로 덮개 모드 암호 프롬프트 제거
 - [ ] 해금 스킨: 순라꾼(조선시대 불침번), 선비(현량자고)

@@ -58,6 +58,8 @@ final class DutyController: ObservableObject {
     private let assertion = PowerAssertion()
     private let notifier = Notifier()
     private var dutyStartedAt: Date?
+    /// 근무 교대·종료 직후 잠깐 경례 포즈
+    private var saluteUntil: Date?
     private var lastAgentSummary = ""
     private var ticking = false
     private var timer: Timer?
@@ -86,13 +88,16 @@ final class DutyController: ObservableObject {
 
     // MARK: - 메뉴 표시
 
-    var menuBarTitle: String {
-        switch order {
-        case .off: "💤"
-        case .agentWatch: isOnDuty ? "🪖" : "👀"
-        case .timed(let until):
-            until.map { "🪖 " + DutyClock.format($0.timeIntervalSince(now)) } ?? "🪖"
-        }
+    var pose: Sprites.Pose {
+        if let saluteUntil, Date() < saluteUntil { return .salute }
+        if isOnDuty { return .duty }
+        return order == .agentWatch ? .standby : .sleeping
+    }
+
+    /// 시간제 근무의 남은 시간 (메뉴바 표시용)
+    var remainingText: String? {
+        guard case .timed(let until?) = order else { return nil }
+        return DutyClock.format(until.timeIntervalSinceNow)
     }
 
     var statusLine: String {
@@ -200,6 +205,7 @@ final class DutyController: ObservableObject {
             break
         case .timed(let until):
             if let until, now >= until {
+                saluteUntil = Date().addingTimeInterval(10)
                 await standDown(notice: Lines.timeUp, logText: "근무 시간 종료")
             }
         case .agentWatch:
@@ -215,6 +221,7 @@ final class DutyController: ObservableObject {
             case .handover:
                 await disengage()
                 quote = Lines.pick(Lines.standby)
+                saluteUntil = Date().addingTimeInterval(10)
                 notifier.send(Lines.handover(lastAgentSummary))
                 writeLog("근무 교대 — \(lastAgentSummary) 작업 종료, 이상 무")
             case .none:

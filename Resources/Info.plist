@@ -8,6 +8,8 @@
     <string>Bulchimbeon</string>
     <key>CFBundleDisplayName</key>
     <string>불침번</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleExecutable</key>
     <string>Bulchimbeon</string>
     <key>CFBundlePackageType</key>
