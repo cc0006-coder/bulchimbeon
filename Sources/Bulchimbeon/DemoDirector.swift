@@ -8,6 +8,14 @@ enum DemoDirector {
     static let width: CGFloat = 1000
     static let height: CGFloat = 170
 
+    /// `--demo-scale N` (2…6, 기본 3): 정사각형·세로 영상용으로 이등병을 더 크게
+    private static var demoScale: Int {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--demo-scale"), i + 1 < args.count,
+              let value = Int(args[i + 1]), (2...6).contains(value) else { return 3 }
+        return value
+    }
+
     static func run() {
         guard let screen = NSScreen.screens.first else { return }
         // 메뉴바 바로 아래, 화면 오른쪽 (알림 배너 위치 포함)
@@ -25,7 +33,7 @@ enum DemoDirector {
             let duty = DutyController.shared
             let patrol = PatrolController.shared
             let originalScale = patrol.scale
-            patrol.scale = 3 // 홍보용으로 크게, 끝나면 사용자 설정 복원
+            patrol.scale = demoScale // 홍보용으로 크게, 끝나면 사용자 설정 복원
             try? await Task.sleep(for: .seconds(2))   // 녹화 시작 여유
             await duty.playDemo()
             try? await Task.sleep(for: .seconds(2)) // 녹화가 끝날 때까지 배경 유지
