@@ -130,11 +130,22 @@ import Testing
     }
 
     @Test func agentWatchTransitions() {
-        #expect(AgentWatchPolicy.decide(agentsPresent: true, onDuty: false, lowBattery: false) == .engage)
-        #expect(AgentWatchPolicy.decide(agentsPresent: true, onDuty: false, lowBattery: true) == .none, "배터리 부족이면 투입 안 함")
-        #expect(AgentWatchPolicy.decide(agentsPresent: false, onDuty: true, lowBattery: false) == .handover)
-        #expect(AgentWatchPolicy.decide(agentsPresent: true, onDuty: true, lowBattery: false) == .none)
-        #expect(AgentWatchPolicy.decide(agentsPresent: false, onDuty: false, lowBattery: false) == .none)
+        let g: TimeInterval = 300
+        #expect(AgentWatchPolicy.decide(busyNow: true, quietFor: 0, grace: g, onDuty: false, lowBattery: false) == .engage)
+        #expect(AgentWatchPolicy.decide(busyNow: true, quietFor: 0, grace: g, onDuty: false, lowBattery: true) == .none, "배터리 부족이면 투입 안 함")
+        #expect(AgentWatchPolicy.decide(busyNow: true, quietFor: 0, grace: g, onDuty: true, lowBattery: false) == .none)
+        #expect(AgentWatchPolicy.decide(busyNow: false, quietFor: 10, grace: g, onDuty: true, lowBattery: false) == .none, "caffeinate 재실행 사이 공백")
+        #expect(AgentWatchPolicy.decide(busyNow: false, quietFor: 300, grace: g, onDuty: true, lowBattery: false) == .handover)
+        #expect(AgentWatchPolicy.decide(busyNow: false, quietFor: 999, grace: g, onDuty: false, lowBattery: false) == .none, "조용한데 근무 중도 아님")
+    }
+
+    @Test func quietTimeStartsAtWatchStart() {
+        let start = Date(timeIntervalSince1970: 1000)
+        // 시간 근무 → 에이전트 근무 전환 직후: 일하는 걸 본 적 없어도 시작 시각부터 센다 (실측 버그 재현)
+        #expect(AgentWatchPolicy.quietFor(now: start.addingTimeInterval(5), lastBusyAt: nil, watchStartedAt: start) == 5)
+        // 근무 시작 전에 본 작업 기록은 무시
+        #expect(AgentWatchPolicy.quietFor(now: start.addingTimeInterval(5), lastBusyAt: start.addingTimeInterval(-100), watchStartedAt: start) == 5)
+        #expect(AgentWatchPolicy.quietFor(now: start.addingTimeInterval(400), lastBusyAt: start.addingTimeInterval(100), watchStartedAt: start) == 300)
     }
 
     @Test func dutyResume() {
@@ -456,5 +467,36 @@ import Testing
     @Test func cyclicParentLinksDoNotHang() {
         let processes = [proc(10, 11, claudePath, ["claude"]), proc(11, 10, "/bin/zsh", ["zsh"])]
         #expect(AgentActivity.evaluate(processes, cpu: [11: 5]).values.first?.busy == 1)
+    }
+}
+
+@Suite struct CPUHistoryTests {
+    private let t0 = Date(timeIntervalSince1970: 1_000_000)
+    private let second: UInt64 = 1_000_000_000
+
+    @Test func periodicBlipsAverageOut() {
+        // 15초마다 0.2초씩 쓰는 감시 스크립트 (실측 상황 재현): 5초 순간값은 4% 지만 60초 평균은 ~1.3%
+        var history = CPUHistory(window: 60)
+        var used: UInt64 = 0
+        var last: [Int32: Double] = [:]
+        for tick in 0...24 { // 5초 간격 2분
+            if tick % 3 == 0 { used += second / 5 }
+            last = history.add([42: used], at: t0.addingTimeInterval(Double(tick) * 5))
+        }
+        #expect((last[42] ?? 0) < AgentActivity.cpuThreshold)
+    }
+
+    @Test func sustainedWorkStaysBusy() {
+        var history = CPUHistory(window: 60)
+        var last: [Int32: Double] = [:]
+        for tick in 0...24 { // 계속 10% 사용
+            last = history.add([7: UInt64(tick) * second / 2], at: t0.addingTimeInterval(Double(tick) * 5))
+        }
+        #expect(abs((last[7] ?? 0) - 10) < 0.5)
+    }
+
+    @Test func firstSampleHasNoData() {
+        var history = CPUHistory()
+        #expect(history.add([1: 100], at: t0).isEmpty)
     }
 }

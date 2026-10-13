@@ -18,15 +18,23 @@ public enum BatteryPolicy {
 }
 
 /// 에이전트 근무 모드의 교대 판단.
+///
+/// - 투입: 지금 실제로 일하는 에이전트가 있을 때만
+/// - 교대: 근무 중인데 `quietFor` 가 유예 시간 이상일 때만
+///   (`quietFor` = 지금 − max(마지막으로 일하는 걸 본 시각, 에이전트 근무 시작 시각))
+/// 실측: Claude Code 는 `caffeinate -t 300` 을 주기적으로 다시 띄워서 그 사이 짧은 공백이 있다.
+/// 공백 한 번에 교대했다가 바로 다시 투입하는 깜빡임을 막는다.
 public enum AgentWatchPolicy {
     public enum Action: Equatable { case engage, handover, none }
 
-    public static func decide(agentsPresent: Bool, onDuty: Bool, lowBattery: Bool) -> Action {
-        switch (agentsPresent, onDuty) {
-        case (true, false): lowBattery ? .none : .engage
-        case (false, true): .handover
-        default: .none
-        }
+    public static func decide(busyNow: Bool, quietFor: TimeInterval, grace: TimeInterval,
+                              onDuty: Bool, lowBattery: Bool) -> Action {
+        if busyNow { return !onDuty && !lowBattery ? .engage : .none }
+        return onDuty && quietFor >= grace ? .handover : .none
+    }
+
+    public static func quietFor(now: Date, lastBusyAt: Date?, watchStartedAt: Date) -> TimeInterval {
+        now.timeIntervalSince(max(lastBusyAt ?? watchStartedAt, watchStartedAt))
     }
 }
 
@@ -160,4 +168,33 @@ public enum LidCommands {
 
     /// 감시병이 살아 있는지 확인할 때 쓰는 `pgrep -f` 패턴
     public static func watchdogPattern(pid: Int32) -> String { markerPattern(pid) }
+}
+
+/// 프로세스별 CPU 사용률을 최근 `window` 초 평균으로 계산한다.
+///
+/// 실측: 5초 순간값으로 보면 15초마다 잠깐 도는 감시 스크립트·개발 서버 폴링이 2~6% 로 튀어
+/// "작업 중"이 계속 갱신되고 교대가 영원히 일어나지 않았다. 60초 평균이면 이런 주기적 잡음은 1% 안팎으로 묻힌다.
+public struct CPUHistory: Sendable {
+    public typealias Sample = (times: [Int32: UInt64], at: Date)
+
+    public let window: TimeInterval
+    private var samples: [Sample] = []
+
+    public init(window: TimeInterval = 60) { self.window = window }
+
+    /// 새 샘플을 넣고, 창 크기에 가장 가까운 과거 샘플과 비교한 평균 CPU(%)를 돌려준다.
+    public mutating func add(_ times: [Int32: UInt64], at now: Date) -> [Int32: Double] {
+        samples.removeAll { now.timeIntervalSince($0.at) > window * 1.5 }
+        let base = samples.last { now.timeIntervalSince($0.at) >= window } ?? samples.first
+        samples.append((times, now))
+        guard let base else { return [:] }
+        let wall = now.timeIntervalSince(base.at) * 1_000_000_000
+        guard wall > 0 else { return [:] }
+        var result: [Int32: Double] = [:]
+        for (pid, time) in times {
+            guard let before = base.times[pid], time >= before else { continue }
+            result[pid] = Double(time - before) / wall * 100
+        }
+        return result
+    }
 }

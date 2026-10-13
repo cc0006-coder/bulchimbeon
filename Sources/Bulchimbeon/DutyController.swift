@@ -84,7 +84,8 @@ final class DutyController: ObservableObject {
     private var ticking = false
     private var lastScan = Date.distantPast
     private var lastBusyAt: Date?
-    private var previousCPU: (times: [Int32: UInt64], at: Date)?
+    private var watchStartedAt = Date()
+    private var cpuHistory = CPUHistory(window: 60)
     private var heatAdvised = false
     private var coolSince: Date?
     /// 화면이 잠긴 시각 (당직 근무 인수인계용)
@@ -208,6 +209,7 @@ final class DutyController: ObservableObject {
     }
 
     func startAgentWatch() async {
+        watchStartedAt = Date()
         order = .agentWatch
         quote = Lines.pick(Lines.standby())
         writeLog(L10n.t("에이전트 근무 대기 시작", "Started waiting for agents"))
@@ -327,6 +329,7 @@ final class DutyController: ObservableObject {
 
         switch action {
         case .agentWatch:
+            watchStartedAt = Date()
             order = .agentWatch
             quote = Lines.pick(Lines.standby())
             writeLog(L10n.t("근무 복귀 — 에이전트 근무", "Back on watch — agent watch"))
@@ -357,7 +360,7 @@ final class DutyController: ObservableObject {
         }.value
         now = Date()
         if let scanned {
-            let cpu = cpuPercent(scanned.cpuTimes, at: now)
+            let cpu = cpuHistory.add(scanned.cpuTimes, at: now)
             agentStatus = AgentActivity.evaluate(scanned.snapshots, cpu: cpu,
                                                  kinds: AgentCatalog.builtIn + AgentCatalog.customKinds(customAgents))
             agents = agentStatus.mapValues(\.present).filter { $0.value > 0 }
@@ -424,21 +427,21 @@ final class DutyController: ObservableObject {
                 await standDown(notice: Lines.timeUp(), logText: L10n.t("근무 시간 종료", "Watch time over"))
             }
         case .agentWatch:
-            // 일할 때만 근무: 작업 중인 에이전트가 있거나, 조용해진 지 유예 시간 이내
+            // 일할 때만 근무: 투입은 지금 일하는 에이전트가 있을 때, 교대는 유예 시간 넘게 조용할 때
             let busy = agentStatus.mapValues(\.busy).filter { $0.value > 0 }
-            let present: Bool
+            let busyNow: Bool
             if countIdleSessions {
-                present = !agents.isEmpty
-                if present { lastAgentSummary = AgentCatalog.summary(agents) }
+                busyNow = !agents.isEmpty
+                if busyNow { lastAgentSummary = AgentCatalog.summary(agents) }
             } else {
-                if !busy.isEmpty {
-                    lastBusyAt = now
-                    lastAgentSummary = AgentCatalog.summary(busy)
-                }
-                present = !busy.isEmpty || (lastBusyAt.map { now.timeIntervalSince($0) < AgentActivity.busyGrace } ?? false)
+                busyNow = !busy.isEmpty
+                if busyNow { lastAgentSummary = AgentCatalog.summary(busy) }
             }
+            if busyNow { lastBusyAt = now }
+            if lastAgentSummary.isEmpty { lastAgentSummary = L10n.t("에이전트", "Agents") }
+            let quiet = AgentWatchPolicy.quietFor(now: now, lastBusyAt: lastBusyAt, watchStartedAt: watchStartedAt)
 
-            switch AgentWatchPolicy.decide(agentsPresent: present, onDuty: isOnDuty,
+            switch AgentWatchPolicy.decide(busyNow: busyNow, quietFor: quiet, grace: AgentActivity.busyGrace, onDuty: isOnDuty,
                                            lowBattery: BatteryPolicy.shouldRetreat(battery, floor: floor) || heat >= .alert) {
             case .engage:
                 await engage()
@@ -491,20 +494,6 @@ final class DutyController: ObservableObject {
         quote = Lines.pick(Lines.off())
         if let notice { notifier.send(notice) }
         writeLog(logText, kind: .standDown)
-    }
-
-    /// 직전 스캔 대비 프로세스별 CPU 사용률(%). 첫 스캔은 비교 대상이 없어 빈 값.
-    private func cpuPercent(_ times: [Int32: UInt64], at date: Date) -> [Int32: Double] {
-        defer { previousCPU = (times, date) }
-        guard let previous = previousCPU else { return [:] }
-        let wall = date.timeIntervalSince(previous.at) * 1_000_000_000
-        guard wall > 0 else { return [:] }
-        var result: [Int32: Double] = [:]
-        for (pid, time) in times {
-            guard let before = previous.times[pid], time >= before else { continue }
-            result[pid] = Double(time - before) / wall * 100
-        }
-        return result
     }
 
     /// 실제 발열 단계. `defaults write ... simulateHeat advisory|alert|normal` 로 시험할 수 있다 (지우면 실제 값).
