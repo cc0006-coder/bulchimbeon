@@ -48,6 +48,11 @@ public enum Lines {
         body: "관리자 승인이 없어 시스템 근무로 대체합니다. 덮개는 열어두십시오!"
     )
 
+    public static let lidResumeFallback = (
+        title: "근무 복귀! 🪖",
+        body: "덮개 근무는 관리자 승인이 다시 필요해 시스템 근무로 복귀했습니다. 필요하면 메뉴에서 다시 켜주십시오."
+    )
+
     public static let lidLeftOn = (
         title: "덮개 잠자기가 꺼진 채 남아 있습니다 ⚠️",
         body: "지난 근무가 비정상 종료됐습니다. 메뉴에서 '덮개 잠자기 복구'를 눌러주십시오."

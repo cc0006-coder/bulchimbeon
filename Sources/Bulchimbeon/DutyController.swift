@@ -33,7 +33,9 @@ final class DutyController: ObservableObject {
     ]
     static let batteryFloors = [10, 20, 30, 0] // 0 = 끄기
 
-    @Published private(set) var order: DutyOrder = .off
+    @Published private(set) var order: DutyOrder = .off {
+        didSet { saveOrder() }
+    }
     @Published private(set) var isOnDuty = false
     @Published private(set) var agents: [AgentKind: Int] = [:]
     @Published private(set) var battery: BatteryStatus?
@@ -52,6 +54,8 @@ final class DutyController: ObservableObject {
         static let batteryFloor = "batteryFloor"
         static let lidEngagedByUs = "lidEngagedByUs"
         static let customAgents = "customAgents"
+        static let order = "dutyOrder"
+        static let orderUntil = "dutyOrderUntil"
     }
 
     private let defaults = UserDefaults.standard
@@ -90,7 +94,10 @@ final class DutyController: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.tick() }
         }
-        Task { await tick() }
+        Task {
+            await resume()
+            await tick()
+        }
     }
 
     // MARK: - 메뉴 표시
@@ -211,6 +218,58 @@ final class DutyController: ObservableObject {
             demoPose = step.pose
             if let line = step.line { say(line, seconds: step.seconds) }
             try? await Task.sleep(for: .seconds(step.seconds))
+        }
+    }
+
+    // MARK: - 재시작 복귀
+
+    private func saveOrder() {
+        switch order {
+        case .off:
+            defaults.removeObject(forKey: Keys.order)
+            defaults.removeObject(forKey: Keys.orderUntil)
+        case .agentWatch:
+            defaults.set("agentWatch", forKey: Keys.order)
+            defaults.removeObject(forKey: Keys.orderUntil)
+        case .timed(let until):
+            defaults.set("timed", forKey: Keys.order)
+            if let until { defaults.set(until.timeIntervalSince1970, forKey: Keys.orderUntil) }
+            else { defaults.removeObject(forKey: Keys.orderUntil) }
+        }
+    }
+
+    /// 앱 재시작·업데이트·재부팅 후 저장된 근무를 이어간다.
+    private func resume() async {
+        guard !CommandLine.arguments.contains("--demo") else { return }
+        let action = DutyResume.decide(stored: defaults.string(forKey: Keys.order),
+                                       until: defaults.object(forKey: Keys.orderUntil) as? Double,
+                                       now: Date())
+        if action == .none { return }
+        if action == .expired {
+            order = .off
+            writeLog("앱이 꺼져 있는 동안 근무 시간 종료")
+            return
+        }
+
+        // 로그인 직후 예고 없는 관리자 암호 창은 피싱처럼 보인다 → 덮개 근무는 시스템 근무로 복귀
+        if mode == .lid && !lidSleepDisabled {
+            mode = .system
+            notifier.send(Lines.lidResumeFallback)
+            writeLog("덮개 근무 → 시스템 근무로 복귀 (관리자 재승인 필요)")
+        }
+
+        switch action {
+        case .agentWatch:
+            order = .agentWatch
+            quote = Lines.pick(Lines.standby)
+            writeLog("근무 복귀 — 에이전트 근무")
+        case .timed(let until):
+            order = .timed(until: until)
+            await engage()
+            say("근무 복귀했습니다! 🫡")
+            writeLog("근무 복귀 — " + (until.map { "남은 시간 \(DutyClock.format($0.timeIntervalSinceNow))" } ?? "무기한"))
+        case .none, .expired:
+            break
         }
     }
 

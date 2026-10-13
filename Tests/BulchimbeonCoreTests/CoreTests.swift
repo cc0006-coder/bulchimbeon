@@ -137,6 +137,19 @@ import Testing
         #expect(AgentWatchPolicy.decide(agentsPresent: false, onDuty: false, lowBattery: false) == .none)
     }
 
+    @Test func dutyResume() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let t = now.timeIntervalSince1970
+        #expect(DutyResume.decide(stored: nil, until: nil, now: now) == .none)
+        #expect(DutyResume.decide(stored: "agentWatch", until: nil, now: now) == .agentWatch)
+        #expect(DutyResume.decide(stored: "timed", until: nil, now: now) == .timed(until: nil), "무기한")
+        #expect(DutyResume.decide(stored: "timed", until: t + 600, now: now) == .timed(until: now.addingTimeInterval(600)), "남은 10분")
+        #expect(DutyResume.decide(stored: "timed", until: t - 1, now: now) == .expired, "꺼져 있는 동안 만료")
+        #expect(DutyResume.decide(stored: "timed", until: t + 7 * 86400, now: now) == .none, "조작된 값")
+        #expect(DutyResume.decide(stored: "timed", until: .infinity, now: now) == .none)
+        #expect(DutyResume.decide(stored: "rm -rf /", until: nil, now: now) == .none)
+    }
+
     @Test func pmsetParsing() {
         #expect(!PmsetParser.sleepDisabled(" SleepDisabled\t\t0\n sleep 1"))
         #expect(PmsetParser.sleepDisabled("System-wide power settings:\n SleepDisabled\t\t1\n"))

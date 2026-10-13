@@ -53,3 +53,31 @@ public enum DutyClock {
             : String(format: "%d:%02d", m, s)
     }
 }
+
+/// 앱 재시작 시 저장된 근무 명령을 이어갈지 판단한다.
+public enum DutyResume {
+    public enum Action: Equatable {
+        case none
+        case agentWatch
+        case timed(until: Date?) // nil = 무기한
+        case expired             // 앱이 꺼져 있는 동안 근무 시간이 끝남
+    }
+
+    /// 근무 명령으로 허용하는 최대 남은 시간. 이보다 길면 저장값 조작으로 보고 무시한다.
+    static let maxRemaining: TimeInterval = 24 * 3600
+
+    public static func decide(stored: String?, until: Double?, now: Date) -> Action {
+        switch stored {
+        case "agentWatch":
+            return .agentWatch
+        case "timed":
+            guard let until else { return .timed(until: nil) }
+            guard until.isFinite else { return .none }
+            let end = Date(timeIntervalSince1970: until)
+            if end <= now { return .expired }
+            return end.timeIntervalSince(now) <= maxRemaining ? .timed(until: end) : .none
+        default:
+            return .none
+        }
+    }
+}
