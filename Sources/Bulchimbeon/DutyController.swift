@@ -44,6 +44,13 @@ final class DutyController: ObservableObject {
     @Published var countIdleSessions: Bool {
         didSet { defaults.set(countIdleSessions, forKey: Keys.countIdleSessions) }
     }
+    /// 모든 에이전트가 조용해진 뒤 교대까지 기다리는 분
+    @Published var graceMinutes: Int {
+        didSet { defaults.set(graceMinutes, forKey: Keys.graceMinutes) }
+    }
+    static let graceOptions = [1, 3, 5, 10]
+    /// 에이전트 근무 중 "왜 근무 중인지 / 언제 교대하는지" (메뉴 표시용)
+    @Published private(set) var watchDetail: String?
     @Published private(set) var battery: BatteryStatus?
     @Published private(set) var lidSleepDisabled = false
     @Published private(set) var heat: HeatLevel = .normal
@@ -67,6 +74,7 @@ final class DutyController: ObservableObject {
         static let orderUntil = "dutyOrderUntil"
         static let simulateHeat = "simulateHeat"
         static let countIdleSessions = "agentWatchCountsIdle"
+        static let graceMinutes = "agentGraceMinutes"
     }
 
     private let defaults = UserDefaults.standard
@@ -104,6 +112,8 @@ final class DutyController: ObservableObject {
         let storedFloor = defaults.object(forKey: Keys.batteryFloor) as? Int ?? 20
         batteryFloor = Self.batteryFloors.contains(storedFloor) ? storedFloor : 20
         countIdleSessions = defaults.bool(forKey: Keys.countIdleSessions)
+        let storedGrace = defaults.object(forKey: Keys.graceMinutes) as? Int ?? 5
+        graceMinutes = Self.graceOptions.contains(storedGrace) ? storedGrace : 5
         lidSleepDisabled = SystemProbes.lidSleepDisabled()
 
         if !lidSleepDisabled && lidEngagedByUs {
@@ -440,8 +450,11 @@ final class DutyController: ObservableObject {
             if busyNow { lastBusyAt = now }
             if lastAgentSummary.isEmpty { lastAgentSummary = L10n.t("에이전트", "Agents") }
             let quiet = AgentWatchPolicy.quietFor(now: now, lastBusyAt: lastBusyAt, watchStartedAt: watchStartedAt)
+            let grace = TimeInterval(graceMinutes * 60)
+            watchDetail = Self.watchDetail(busyNow: busyNow, countIdle: countIdleSessions, summary: lastAgentSummary,
+                                           openCount: agents.values.reduce(0, +), onDuty: isOnDuty, quiet: quiet, grace: grace)
 
-            switch AgentWatchPolicy.decide(busyNow: busyNow, quietFor: quiet, grace: AgentActivity.busyGrace, onDuty: isOnDuty,
+            switch AgentWatchPolicy.decide(busyNow: busyNow, quietFor: quiet, grace: grace, onDuty: isOnDuty,
                                            lowBattery: BatteryPolicy.shouldRetreat(battery, floor: floor) || heat >= .alert) {
             case .engage:
                 await engage()
@@ -494,6 +507,17 @@ final class DutyController: ObservableObject {
         quote = Lines.pick(Lines.off())
         if let notice { notifier.send(notice) }
         writeLog(logText, kind: .standDown)
+    }
+
+    static func watchDetail(busyNow: Bool, countIdle: Bool, summary: String, openCount: Int,
+                            onDuty: Bool, quiet: TimeInterval, grace: TimeInterval) -> String? {
+        if countIdle && busyNow {
+            return L10n.t("열린 세션 \(openCount)개 (열린 세션 인정 모드)", "\(openCount) open session(s) (counting idle sessions)")
+        }
+        if busyNow { return L10n.t("\(summary) 작업 중", "\(summary) working") }
+        guard onDuty else { return nil }
+        return L10n.t("조용해진 지 \(DutyClock.format(quiet)) · 교대까지 \(DutyClock.format(grace - quiet))",
+                      "Quiet for \(DutyClock.format(quiet)) · shift over in \(DutyClock.format(grace - quiet))")
     }
 
     /// 실제 발열 단계. `defaults write ... simulateHeat advisory|alert|normal` 로 시험할 수 있다 (지우면 실제 값).
