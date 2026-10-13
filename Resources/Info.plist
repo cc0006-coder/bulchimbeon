@@ -20,6 +20,12 @@
     <string>__VERSION__</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>ko</string>
+    <!-- 시스템 설정 → 일반 → 언어 및 지역 → 앱별 언어에서 고를 수 있게 -->
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>ko</string>
+        <string>en</string>
+    </array>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>

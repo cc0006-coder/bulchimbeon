@@ -5,7 +5,8 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-VERSION="${VERSION:-0.1.0}"
+# 미지정 시 git 태그 기준 (예: 0.4.0-2-gabc1234). 태그가 없으면 dev
+VERSION="${VERSION:-$(git describe --tags --always 2>/dev/null | sed 's/^v//' || echo dev)}"
 APP="dist/Bulchimbeon.app"
 
 if [[ "${UNIVERSAL:-0}" == "1" ]]; then
