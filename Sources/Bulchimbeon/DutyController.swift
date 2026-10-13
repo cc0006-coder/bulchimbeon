@@ -72,7 +72,9 @@ final class DutyController: ObservableObject {
 
     private init() {
         mode = DutyMode(rawValue: defaults.string(forKey: Keys.mode) ?? "") ?? .system
-        batteryFloor = defaults.object(forKey: Keys.batteryFloor) as? Int ?? 20
+        // defaults 는 사용자가 `defaults write` 로 바꿀 수 있으므로 허용된 값만 받는다
+        let storedFloor = defaults.object(forKey: Keys.batteryFloor) as? Int ?? 20
+        batteryFloor = Self.batteryFloors.contains(storedFloor) ? storedFloor : 20
         lidSleepDisabled = SystemProbes.lidSleepDisabled()
 
         if lidSleepDisabled && lidEngagedByUs {

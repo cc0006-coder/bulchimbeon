@@ -34,8 +34,13 @@ enum SystemProbes {
     }
 
     /// `pmset -a disablesleep` 변경. 관리자 암호 프롬프트가 뜬다. 취소하면 false.
+    ///
+    /// 보안: 스크립트에 들어가는 가변 값은 Bool 에서 나온 "0"/"1" 뿐이라 셸 인젝션 여지가 없다.
+    /// 프롬프트에 실행할 명령을 그대로 보여줘, 사용자가 무엇에 암호를 주는지 알 수 있게 한다.
     static func setLidSleepDisabled(_ disabled: Bool) -> Bool {
-        let script = "do shell script \"/usr/bin/pmset -a disablesleep \(disabled ? 1 : 0)\" with administrator privileges"
+        let command = "/usr/bin/pmset -a disablesleep \(disabled ? 1 : 0)"
+        let prompt = "불침번이 덮개 잠자기 설정을 바꾸려 합니다.\n실행 명령: \(command)"
+        let script = "do shell script \"\(command)\" with prompt \"\(prompt)\" with administrator privileges"
         return run("/usr/bin/osascript", ["-e", script]) != nil
     }
 
@@ -45,6 +50,8 @@ enum SystemProbes {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
+        // 앱 환경(DYLD_*, 사용자 PATH 등)을 넘기지 않는다. LANG=C 로 출력 형식도 고정.
+        process.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C"]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice

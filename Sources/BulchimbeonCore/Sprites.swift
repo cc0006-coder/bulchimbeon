@@ -50,6 +50,11 @@ public struct PixelSprite: Sendable, Equatable {
         return PixelSprite(grid.map { String($0) })
     }
 
+    /// 좌우 반전 (왼쪽으로 걷기)
+    public func mirrored() -> PixelSprite {
+        PixelSprite(rows.map { String($0.reversed()) })
+    }
+
     /// CoreGraphics(y-up) 컨텍스트에 그린다. origin 은 스프라이트의 좌하단.
     public func draw(in ctx: CGContext, origin: CGPoint = .zero, pixel: CGFloat) {
         for (y, row) in rows.enumerated() {
@@ -71,6 +76,7 @@ public enum Sprites {
         case standby  // 👀 근무 대기 — 두리번
         case duty     // 🪖 근무 중 — 손전등 깜빡
         case salute   // 🫡 근무 교대
+        case patrol   // 🚶 순찰 — 오른쪽을 보고 걷기 (왼쪽은 mirrored)
     }
 
     public static func frames(_ pose: Pose) -> [PixelSprite] {
@@ -80,6 +86,7 @@ public enum Sprites {
         case .standby: [standbyLeft, standbyLeft, standbyLeft, standbyRight, standbyRight, standbyRight]
         case .duty: [dutyBeam, dutyBeam, dutyBeam, dutyDark]
         case .salute: [salute, salute, saluteSparkle, saluteSparkle]
+        case .patrol: [walkA, walkB]
         }
     }
 
@@ -111,6 +118,17 @@ public enum Sprites {
         "...KUUUuUUUK..yy",
         "...KUUKKKUUK....",
         "...KBBK.KBBK....",
+    ])
+
+    // 순찰 걸음: 다리를 벌렸다(A) 모았다(B)
+    static let walkA = PixelSprite(Array(dutyBeam.rows.prefix(14)) + [
+        "..KUUK...KUUK...",
+        ".KBBK.....KBBK..",
+    ])
+
+    static let walkB = PixelSprite(Array(dutyBeam.rows.prefix(14)) + [
+        "....KUUKKUUK....",
+        "....KBBKKBBK....",
     ])
 
     static let dutyDark = PixelSprite(helmet + face(eyes: eyesFront) + [

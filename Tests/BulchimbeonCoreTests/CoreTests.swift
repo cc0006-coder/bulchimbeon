@@ -92,6 +92,49 @@ import Testing
         #expect(text.contains("근무 투입") && text.contains("근무 교대"))
         #expect(text.split(separator: "\n").count == 2)
     }
+
+    private func tempLogURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString).appendingPathComponent("log.txt")
+    }
+
+    @Test func fileIsOwnerOnly() throws {
+        let url = tempLogURL()
+        DutyLog(fileURL: url).write("근무 투입")
+        let perms = try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int
+        #expect(perms == 0o600)
+        let dirPerms = try FileManager.default
+            .attributesOfItem(atPath: url.deletingLastPathComponent().path)[.posixPermissions] as? Int
+        #expect(dirPerms == 0o700)
+    }
+
+    @Test func refusesToFollowSymlink() throws {
+        let url = tempLogURL()
+        let dir = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let victim = dir.appendingPathComponent("victim.txt")
+        try "중요한 파일".write(to: victim, atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: url, withDestinationURL: victim)
+
+        DutyLog(fileURL: url).write("덮어쓰기 시도")
+        #expect(try String(contentsOf: victim, encoding: .utf8) == "중요한 파일")
+    }
+
+    @Test func rotatesWhenTooLarge() throws {
+        let url = tempLogURL()
+        let log = DutyLog(fileURL: url, maxFileBytes: 64)
+        for i in 0..<10 { log.write("근무 기록 \(i)") }
+        let size = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int ?? 0
+        #expect(size < 64 * 2)
+        #expect(FileManager.default.fileExists(atPath: url.appendingPathExtension("1").path))
+    }
+
+    @Test func newlinesCannotForgeEntries() throws {
+        let url = tempLogURL()
+        DutyLog(fileURL: url).write("정상\n2026-01-01T00:00:00Z  위조된 항목")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        #expect(text.split(separator: "\n").count == 1)
+    }
 }
 
 @Suite struct SpriteTests {
@@ -112,6 +155,12 @@ import Testing
         let scene = Sprites.appIconScene
         #expect(scene.height == 24)
         #expect(scene.rows.allSatisfy { $0.count == 24 })
+    }
+
+    @Test func mirroredFlipsRows() {
+        let sprite = PixelSprite(["KY.", ".BU"])
+        #expect(sprite.mirrored().rows == [".YK", "UB."])
+        #expect(sprite.mirrored().mirrored() == sprite)
     }
 
     @Test func placingOverlaysOnlyOpaquePixels() {

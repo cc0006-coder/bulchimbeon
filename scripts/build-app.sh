@@ -22,8 +22,13 @@ cp "$BIN" "$APP/Contents/MacOS/Bulchimbeon"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 sed "s/__VERSION__/$VERSION/g" Resources/Info.plist > "$APP/Contents/Info.plist"
 
-codesign --force --sign - "$APP"
-(cd dist && rm -f "Bulchimbeon-$VERSION.zip" && ditto -c -k --keepParent Bulchimbeon.app "Bulchimbeon-$VERSION.zip")
+# hardened runtime: 런타임 코드 주입(DYLD_*)·디버거 attach 차단
+codesign --force --options runtime --timestamp=none --sign - "$APP"
+codesign --verify --strict "$APP"
+
+ZIP="Bulchimbeon-$VERSION.zip"
+(cd dist && rm -f "$ZIP" "$ZIP.sha256" && ditto -c -k --keepParent Bulchimbeon.app "$ZIP" && shasum -a 256 "$ZIP" > "$ZIP.sha256")
 
 echo "✅ $APP (v$VERSION)"
 echo "   실행: open $APP"
+echo "   체크섬: dist/$ZIP.sha256"

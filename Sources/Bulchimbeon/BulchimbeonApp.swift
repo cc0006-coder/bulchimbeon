@@ -7,10 +7,11 @@ struct BulchimbeonApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var duty = DutyController.shared
     @StateObject private var animator = SpriteAnimator()
+    @StateObject private var patrol = PatrolController.shared
 
     var body: some Scene {
         MenuBarExtra {
-            DutyMenu(duty: duty)
+            DutyMenu(duty: duty, patrol: patrol)
         } label: {
             MenuBarLabel(duty: duty, animator: animator)
         }
@@ -37,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 번들 밖(swift run)에서도 Dock 아이콘 없이 메뉴바 전용으로
         NSApp.setActivationPolicy(.accessory)
+        MainActor.assumeIsolated { PatrolController.shared.start() }
 
         // open -a Bulchimbeon --args --agent-watch  → 실행과 동시에 에이전트 근무
         if CommandLine.arguments.contains("--agent-watch") {
@@ -51,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 struct DutyMenu: View {
     @ObservedObject var duty: DutyController
+    @ObservedObject var patrol: PatrolController
 
     var body: some View {
         Text("불침번 — \(duty.statusLine)")
@@ -78,6 +81,12 @@ struct DutyMenu: View {
             set: { mode in Task { await duty.setMode(mode) } }
         )) {
             ForEach(DutyMode.allCases) { Text($0.title).tag($0) }
+        }
+        Toggle("🚶 순찰 모드 (화면 위 이등병)", isOn: $patrol.enabled)
+        if patrol.enabled {
+            Picker("이등병 크기", selection: $patrol.scale) {
+                ForEach(PatrolController.scales, id: \.self) { Text("\($0)배").tag($0) }
+            }
         }
         Picker("배터리 철수 기준", selection: $duty.batteryFloor) {
             ForEach(DutyController.batteryFloors, id: \.self) { floor in
