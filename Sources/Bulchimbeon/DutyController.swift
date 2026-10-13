@@ -61,6 +61,10 @@ final class DutyController: ObservableObject {
     private var dutyStartedAt: Date?
     /// 근무 교대·종료 직후 잠깐 경례 포즈
     private var saluteUntil: Date?
+    /// 순찰 이등병 말풍선
+    private var speech: (text: String, until: Date)?
+    /// --demo 연출 중이면 실제 상태 대신 이 포즈
+    @Published private var demoPose: Sprites.Pose?
     private var lastAgentSummary = ""
     private var ticking = false
     private var timer: Timer?
@@ -92,9 +96,19 @@ final class DutyController: ObservableObject {
     // MARK: - 메뉴 표시
 
     var pose: Sprites.Pose {
+        if let demoPose { return demoPose }
         if let saluteUntil, Date() < saluteUntil { return .salute }
         if isOnDuty { return .duty }
         return order == .agentWatch ? .standby : .sleeping
+    }
+
+    var currentSpeech: String? {
+        guard let speech, Date() < speech.until else { return nil }
+        return speech.text
+    }
+
+    private func say(_ text: String, seconds: TimeInterval = 4) {
+        speech = (text, Date().addingTimeInterval(seconds))
     }
 
     /// 시간제 근무의 남은 시간 (메뉴바 표시용)
@@ -133,6 +147,7 @@ final class DutyController: ObservableObject {
         order = .timed(until: duration.map { Date().addingTimeInterval($0) })
         await engage()
         notifier.send(Lines.reportForDuty)
+        say("근무 서겠습니다! 🫡")
         let length = Self.durations.first { $0.seconds == duration }?.title ?? "무기한"
         writeLog("근무 투입 — \(length), \(mode.title)")
     }
@@ -183,10 +198,26 @@ final class DutyController: ObservableObject {
         }
     }
 
+    /// 녹화용 연출: 대기 → 출근 → 순찰 → 교대 경례 → 취침
+    func playDemo() async {
+        let steps: [(pose: Sprites.Pose, line: String?, seconds: Double)] = [
+            (.standby, "에이전트 출근 기다리는 중 👀", 3.5),
+            (.duty, "근무 투입! 이상 무!", 3),
+            (.duty, nil, 6),
+            (.salute, "근무 교대합니다! 🫡", 4),
+            (.sleeping, nil, 1.5),
+        ]
+        for step in steps {
+            demoPose = step.pose
+            if let line = step.line { say(line, seconds: step.seconds) }
+            try? await Task.sleep(for: .seconds(step.seconds))
+        }
+    }
+
     // MARK: - 근무 사이클
 
     private func tick() async {
-        guard !ticking else { return }
+        guard !ticking, demoPose == nil else { return }
         ticking = true
         defer { ticking = false }
 
@@ -210,6 +241,7 @@ final class DutyController: ObservableObject {
         case .timed(let until):
             if let until, now >= until {
                 saluteUntil = Date().addingTimeInterval(10)
+                say("근무 끝! 충성! 🫡", seconds: 8)
                 await standDown(notice: Lines.timeUp, logText: "근무 시간 종료")
             }
         case .agentWatch:
@@ -221,12 +253,14 @@ final class DutyController: ObservableObject {
             case .engage:
                 await engage()
                 notifier.send(Lines.agentArrived(lastAgentSummary))
+                say("근무 투입! 이상 무!")
                 writeLog("근무 투입 — \(lastAgentSummary) 출근")
             case .handover:
                 await disengage()
                 quote = Lines.pick(Lines.standby)
                 saluteUntil = Date().addingTimeInterval(10)
                 notifier.send(Lines.handover(lastAgentSummary))
+                say("근무 교대합니다! 🫡", seconds: 8)
                 writeLog("근무 교대 — \(lastAgentSummary) 작업 종료, 이상 무")
             case .none:
                 break

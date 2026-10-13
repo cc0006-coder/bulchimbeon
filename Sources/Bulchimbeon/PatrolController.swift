@@ -73,7 +73,7 @@ final class PatrolController: ObservableObject {
         let frame = NSRect(x: screen.frame.minX, y: screen.visibleFrame.maxY - spriteSize,
                            width: screen.frame.width, height: spriteSize)
         panel.setFrame(frame, display: true)
-        x = min(max(x, margin), maxX)
+        if x >= 0 { x = min(max(x, margin), maxX) } // 첫 배치(-1)는 refreshVisibility 가 구석으로
     }
 
     private var maxX: CGFloat { (panel?.frame.width ?? 0) - spriteSize - margin }
@@ -122,6 +122,7 @@ final class PatrolController: ObservableObject {
         }
 
         view.sprite = sprite
+        view.speech = duty.currentSpeech
         view.spriteX = x
         view.pixel = CGFloat(scale)
         view.needsDisplay = true
@@ -148,13 +149,41 @@ final class PatrolController: ObservableObject {
 
 final class PatrolView: NSView {
     var sprite: PixelSprite?
+    var speech: String?
     var spriteX: CGFloat = 0
     var pixel: CGFloat = 2
 
     override func draw(_ dirtyRect: NSRect) {
         guard let sprite, let ctx = NSGraphicsContext.current?.cgContext else { return }
         ctx.clear(bounds)
+        ctx.saveGState()
         ctx.setShouldAntialias(false)
         sprite.draw(in: ctx, origin: CGPoint(x: spriteX.rounded(), y: 0), pixel: pixel)
+        ctx.restoreGState()
+        if let speech { drawBubble(speech, spriteWidth: CGFloat(sprite.width) * pixel) }
+    }
+
+    /// 이등병 옆 말풍선. 오른쪽 공간이 모자라면 왼쪽에 띄운다.
+    private func drawBubble(_ text: String, spriteWidth: CGFloat) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: max(11, pixel * 5.5), weight: .semibold),
+            .foregroundColor: NSColor(red: 0.16, green: 0.14, blue: 0.19, alpha: 1),
+        ]
+        let size = (text as NSString).size(withAttributes: attributes)
+        let width = size.width + 16, height = min(bounds.height - 2, size.height + 8), tail: CGFloat = 6
+        let onRight = spriteX + spriteWidth + tail + width < bounds.width
+        let bubbleX = onRight ? spriteX + spriteWidth + tail : spriteX - tail - width
+        let rect = NSRect(x: bubbleX, y: (bounds.height - height) / 2 + 2, width: width, height: height)
+
+        NSColor.white.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: height / 2, yRadius: height / 2).fill()
+        let tailPath = NSBezierPath()
+        let edge = onRight ? rect.minX : rect.maxX
+        tailPath.move(to: NSPoint(x: edge, y: rect.midY + 4))
+        tailPath.line(to: NSPoint(x: onRight ? edge - tail : edge + tail, y: rect.midY - 2))
+        tailPath.line(to: NSPoint(x: edge, y: rect.midY - 4))
+        tailPath.fill()
+        (text as NSString).draw(at: NSPoint(x: rect.minX + 8, y: rect.minY + (height - size.height) / 2),
+                                withAttributes: attributes)
     }
 }

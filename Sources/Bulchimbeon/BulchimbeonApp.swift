@@ -49,6 +49,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         MainActor.assumeIsolated { PatrolController.shared.start() }
 
+        // --demo → 녹화용 연출 후 종료
+        if CommandLine.arguments.contains("--demo") {
+            MainActor.assumeIsolated { DemoDirector.run() }
+            return
+        }
+
         // open -a Bulchimbeon --args --agent-watch  → 실행과 동시에 에이전트 근무
         if CommandLine.arguments.contains("--agent-watch") {
             Task { @MainActor in await DutyController.shared.startAgentWatch() }
