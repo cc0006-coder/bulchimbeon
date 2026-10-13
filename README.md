@@ -59,6 +59,9 @@ sudo pmset disablesleep 1     # 되돌리는 걸 잊으면 배터리 0%
 
 ```bash
 brew install --cask s3onghyun/tap/bulchimbeon
+
+# 업데이트 — tap 을 먼저 새로 받아야 새 버전이 보인다 (Homebrew 자동 갱신 주기가 길다)
+brew update && brew upgrade --cask bulchimbeon
 ```
 
 또는 [Releases](https://github.com/s3onghyun/bulchimbeon/releases) 에서 zip 을 받아 `/Applications` 로 옮긴다. (macOS 13+, Apple Silicon·Intel universal)
