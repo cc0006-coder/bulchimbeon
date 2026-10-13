@@ -49,7 +49,7 @@ final class PatrolController: ObservableObject {
     }
 
     // 보일 때만 20fps, 숨겨져 있으면 1초에 한 번만 깨어나 상태를 확인한다 (에너지)
-    private static let activeInterval: TimeInterval = 1.0 / 20
+    private static let activeInterval: TimeInterval = 1.0 / 15 // 픽셀아트엔 15fps 로 충분
     private static let idleInterval: TimeInterval = 1
 
     private func scheduleTimer(interval: TimeInterval) {
@@ -135,12 +135,12 @@ final class PatrolController: ObservableObject {
             sprite = frame(of: duty.pose, interval: 0.5)
         }
 
-        view.sprite = sprite
-        view.speech = duty.currentSpeech
-        view.spriteX = x
-        view.pixel = CGFloat(scale)
-        view.needsDisplay = true
+        // 레이어 위치·내용만 바꾼다 — 화면 폭 전체를 다시 그리지 않으므로 CPU 가 거의 들지 않는다
+        view.update(sprite: sprite, x: x.rounded(), speech: duty.currentSpeech, pixel: CGFloat(scale))
+        fadeForMouse(panel)
+    }
 
+    private func fadeForMouse(_ panel: NSPanel) {
         // 마우스가 근처에 오면 반투명하게 비켜준다
         let spriteRect = NSRect(x: panel.frame.minX + x, y: panel.frame.minY,
                                 width: spriteSize, height: spriteSize).insetBy(dx: -24, dy: -24)
@@ -161,43 +161,114 @@ final class PatrolController: ObservableObject {
     }
 }
 
+/// 순찰 오버레이 뷰. 이등병·말풍선을 미리 렌더링한 이미지 레이어로 두고 위치만 옮긴다.
+/// (프로파일링 결과: 매 프레임 draw(_:) 방식은 화면 폭 전체 backing store 합성 비용이 CPU 7~9% 를 차지했다)
 final class PatrolView: NSView {
-    var sprite: PixelSprite?
-    var speech: String?
-    var spriteX: CGFloat = 0
-    var pixel: CGFloat = 2
+    private let spriteLayer = CALayer()
+    private let bubbleLayer = CALayer()
+    private var spriteCache: [String: CGImage] = [:]
+    private var currentSprite: PixelSprite?
+    private var currentSpeech: String?
+    private var currentPixel: CGFloat = 0
+    private var currentX: CGFloat = -1
 
-    override func draw(_ dirtyRect: NSRect) {
-        guard let sprite, let ctx = NSGraphicsContext.current?.cgContext else { return }
-        ctx.clear(bounds)
-        ctx.saveGState()
-        ctx.setShouldAntialias(false)
-        sprite.draw(in: ctx, origin: CGPoint(x: spriteX.rounded(), y: 0), pixel: pixel)
-        ctx.restoreGState()
-        if let speech { drawBubble(speech, spriteWidth: CGFloat(sprite.width) * pixel) }
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer = CALayer()
+        spriteLayer.magnificationFilter = .nearest // 픽셀아트는 보간 없이
+        spriteLayer.anchorPoint = .zero
+        bubbleLayer.anchorPoint = .zero
+        layer?.addSublayer(spriteLayer)
+        layer?.addSublayer(bubbleLayer)
     }
 
-    /// 이등병 옆 말풍선. 오른쪽 공간이 모자라면 왼쪽에 띄운다.
-    private func drawBubble(_ text: String, spriteWidth: CGFloat) {
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    func update(sprite: PixelSprite, x: CGFloat, speech: String?, pixel: CGFloat) {
+        guard sprite != currentSprite || x != currentX || speech != currentSpeech || pixel != currentPixel else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true) // 암묵적 애니메이션 끄기
+
+        let size = CGFloat(sprite.width) * pixel
+        if sprite != currentSprite || pixel != currentPixel {
+            spriteLayer.contents = image(for: sprite)
+            spriteLayer.bounds = CGRect(x: 0, y: 0, width: size, height: size)
+        }
+        spriteLayer.position = CGPoint(x: x, y: 0)
+
+        if let speech {
+            // 오른쪽 공간이 모자라면 왼쪽에 띄우고, 꼬리는 항상 이등병 쪽을 향한다
+            let fontSize = max(11, pixel * 5.5), scale = window?.backingScaleFactor ?? 2
+            if let probe = Self.renderBubble(speech, fontSize: fontSize, maxHeight: bounds.height - 2, scale: scale) {
+                let onRight = x + size + 2 + probe.size.width < bounds.width
+                let bubble = onRight ? probe
+                    : Self.renderBubble(speech, fontSize: fontSize, maxHeight: bounds.height - 2, scale: scale, tailOnRight: true) ?? probe
+                bubbleLayer.contents = bubble.image
+                bubbleLayer.bounds = CGRect(origin: .zero, size: bubble.size)
+                bubbleLayer.position = CGPoint(x: onRight ? x + size + 2 : x - 2 - bubble.size.width,
+                                               y: (bounds.height - bubble.size.height) / 2 + 2)
+                bubbleLayer.isHidden = false
+            }
+        } else {
+            bubbleLayer.isHidden = true
+        }
+
+        CATransaction.commit()
+        currentSprite = sprite
+        currentX = x
+        currentSpeech = speech
+        currentPixel = pixel
+    }
+
+    private func image(for sprite: PixelSprite) -> CGImage? {
+        let key = sprite.rows.joined()
+        if let cached = spriteCache[key] { return cached }
+        // 픽셀 1개 = 1px 로 렌더링하고, 확대는 레이어(nearest)가 맡는다
+        guard let ctx = CGContext(data: nil, width: sprite.width, height: sprite.height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.setShouldAntialias(false)
+        sprite.draw(in: ctx, pixel: 1)
+        let image = ctx.makeImage()
+        if spriteCache.count > 64 { spriteCache.removeAll() }
+        spriteCache[key] = image
+        return image
+    }
+
+    private static var bubbleCache: [String: (image: CGImage, size: CGSize)] = [:]
+
+    /// 말풍선 이미지. 같은 문구는 캐시.
+    static func renderBubble(_ text: String, fontSize: CGFloat, maxHeight: CGFloat, scale: CGFloat,
+                             tailOnRight: Bool = false) -> (image: CGImage, size: CGSize)? {
+        let key = "\(text)|\(fontSize)|\(maxHeight)|\(scale)|\(tailOnRight)"
+        if let cached = bubbleCache[key] { return cached }
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: max(11, pixel * 5.5), weight: .semibold),
+            .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold),
             .foregroundColor: NSColor(red: 0.16, green: 0.14, blue: 0.19, alpha: 1),
         ]
-        let size = (text as NSString).size(withAttributes: attributes)
-        let width = size.width + 16, height = min(bounds.height - 2, size.height + 8), tail: CGFloat = 6
-        let onRight = spriteX + spriteWidth + tail + width < bounds.width
-        let bubbleX = onRight ? spriteX + spriteWidth + tail : spriteX - tail - width
-        let rect = NSRect(x: bubbleX, y: (bounds.height - height) / 2 + 2, width: width, height: height)
+        let textSize = (text as NSString).size(withAttributes: attributes)
+        let tail: CGFloat = 6
+        let bodyWidth = ceil(textSize.width + 16), height = ceil(min(maxHeight, textSize.height + 8))
+        let size = CGSize(width: bodyWidth + tail, height: height)
 
-        NSColor.white.setFill()
-        NSBezierPath(roundedRect: rect, xRadius: height / 2, yRadius: height / 2).fill()
-        let tailPath = NSBezierPath()
-        let edge = onRight ? rect.minX : rect.maxX
-        tailPath.move(to: NSPoint(x: edge, y: rect.midY + 4))
-        tailPath.line(to: NSPoint(x: onRight ? edge - tail : edge + tail, y: rect.midY - 2))
-        tailPath.line(to: NSPoint(x: edge, y: rect.midY - 4))
-        tailPath.fill()
-        (text as NSString).draw(at: NSPoint(x: rect.minX + 8, y: rect.minY + (height - size.height) / 2),
-                                withAttributes: attributes)
+        let image = NSImage(size: size, flipped: false) { _ in
+            let body = NSRect(x: tailOnRight ? 0 : tail, y: 0, width: bodyWidth, height: height)
+            NSColor.white.setFill()
+            NSBezierPath(roundedRect: body, xRadius: height / 2, yRadius: height / 2).fill()
+            let path = NSBezierPath()
+            let edge = tailOnRight ? body.maxX : body.minX
+            path.move(to: NSPoint(x: edge, y: body.midY + 4))
+            path.line(to: NSPoint(x: tailOnRight ? edge + tail : edge - tail, y: body.midY - 2))
+            path.line(to: NSPoint(x: edge, y: body.midY - 4))
+            path.fill()
+            (text as NSString).draw(at: NSPoint(x: body.minX + 8, y: (height - textSize.height) / 2), withAttributes: attributes)
+            return true
+        }
+        var rect = CGRect(origin: .zero, size: CGSize(width: size.width * scale, height: size.height * scale))
+        guard let cg = image.cgImage(forProposedRect: &rect, context: nil, hints: nil) else { return nil }
+        if bubbleCache.count > 32 { bubbleCache.removeAll() }
+        bubbleCache[key] = (cg, size)
+        return (cg, size)
     }
 }

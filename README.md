@@ -42,7 +42,7 @@ sudo pmset disablesleep 1     # 되돌리는 걸 잊으면 배터리 0%
 
 | 기능 | 설명 |
 |------|------|
-| 🤖 에이전트 근무 (자동 교대) | Claude Code · Codex · Gemini CLI · Cursor · Copilot CLI · Aider · OpenCode 감지 (+사용자 지정) → 있으면 근무 투입, 모두 끝나면 교대 알림 |
+| 🤖 에이전트 근무 (자동 교대) | Claude Code · Codex · Gemini CLI · Cursor · Copilot CLI · Aider · OpenCode 감지 (+사용자 지정). **열려만 있는 세션은 세지 않고 실제로 일할 때만 근무**, 조용해지고 5분 뒤 교대 → 있으면 근무 투입, 모두 끝나면 교대 알림 |
 | 🪖 근무 서기 | 30분 / 1시간 / 2시간 / 4시간 / 무기한 |
 | 근무 형태 | 화면 켜둠 (`caffeinate -d`) · 화면은 꺼져도 맥은 깨어 있음 (`caffeinate -i`) · **덮개 닫아도 깨어 있음** (관리자 권한) |
 | 🔋 배터리 철수 | 배터리 사용 중 잔량이 기준(기본 20%) 이하면 강제 철수 |
@@ -119,6 +119,15 @@ git tag v0.3.1 && git push origin v0.3.1   # → Release 워크플로가 빌드�
 | bun·deno | `bun .../@google/gemini-cli/...` | 패키지 경로 |
 
 지원: Claude Code · Codex · Gemini CLI · Cursor Agent · Copilot CLI · Aider · OpenCode
+
+**일할 때만 근무.** Claude Code 창을 여러 개 열어 두는 게 보통이라, 열려 있기만 한 세션까지 세면 교대가 영원히 일어나지 않는다.
+그래서 "작업 중"인 에이전트만 센다 (메뉴에서 예전 방식으로 바꿀 수 있음).
+
+| 신호 | 근거 (실측) |
+|------|------------|
+| 자식 프로세스로 `caffeinate` 를 띄움 | Claude Code 는 작업하는 동안만 스스로 `caffeinate -i -t 300` 을 띄운다 |
+| 자신 + 자손 프로세스 CPU 합 ≥ 2% | 빌드·테스트 같은 도구 실행 포함. 입력 대기 세션은 0~0.1% |
+| `--tools=` (도구 없는 헤드리스 세션) 은 제외 | claude-mem 같은 플러그인이 상시 띄워 두는 도우미 세션 |
 
 내 환경에서 제대로 잡히는지 확인하거나, 목록에 없는 에이전트를 추가하려면:
 

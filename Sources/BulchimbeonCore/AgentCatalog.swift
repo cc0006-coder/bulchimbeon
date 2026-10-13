@@ -15,13 +15,15 @@ public struct AgentKind: Hashable, Sendable {
 /// 판별에 쓰는 프로세스 정보. 같은 사용자(UID)의 프로세스만 수집한다.
 public struct ProcessSnapshot: Sendable {
     public let pid: Int32
+    public let ppid: Int32
     /// 실제 실행 파일 경로 (proc_pidpath)
     public let executablePath: String
-    /// argv. 스크립트 러너(node 등)가 아니면 argv[0] 만 담긴다.
+    /// argv. 에이전트 후보·스크립트 러너만 앞부분 전체, 그 외엔 argv[0] 만 담긴다.
     public let arguments: [String]
 
-    public init(pid: Int32 = 0, executablePath: String, arguments: [String]) {
+    public init(pid: Int32 = 0, ppid: Int32 = 0, executablePath: String, arguments: [String]) {
         self.pid = pid
+        self.ppid = ppid
         self.executablePath = executablePath
         self.arguments = arguments
     }
@@ -69,9 +71,25 @@ public enum AgentCatalog {
         scriptRunners.contains(basename(executablePath))
     }
 
+    /// 실행 파일·argv[0] 로 이미 에이전트 후보이면 도우미 세션 판별을 위해 인자를 더 읽는다.
+    public static func isCandidate(executablePath: String, argv0: String?, kinds: [AgentKind] = builtIn) -> Bool {
+        let exe = basename(executablePath), a0 = argv0.map(basename)
+        return kinds.contains { k in
+            k.binaryNames.contains(exe) || (a0.map(k.binaryNames.contains) ?? false)
+                || k.pathMarkers.contains(where: executablePath.contains)
+        }
+    }
+
+    /// 도구가 하나도 없는 헤드리스 세션(`--tools=`)은 에이전트가 아니다.
+    /// 실측: claude-mem 플러그인이 메모리 정리용으로 상시 띄워 두는 세션이 이 모양이다.
+    static func isHelperSession(_ arguments: [String]) -> Bool {
+        arguments.dropFirst().contains("--tools=")
+    }
+
     /// 프로세스 하나를 에이전트로 판별한다.
     /// 부분 문자열 매칭은 하지 않는다 — hook 스크립트(`node -e "...'.claude'..."`)가 오탐되기 때문.
     public static func match(_ process: ProcessSnapshot, kinds: [AgentKind] = builtIn) -> (kind: AgentKind, reason: Reason)? {
+        if isHelperSession(process.arguments) { return nil }
         let exeBase = basename(process.executablePath)
         let argv0Base = process.arguments.first.map(basename)
 
@@ -152,5 +170,51 @@ public enum ProcArgs {
             i += 1
         }
         return args
+    }
+}
+
+/// 에이전트가 "열려만 있는지" vs "일하는 중인지".
+///
+/// 실측(2026-10): Claude Code 세션 7개 중 실제 작업 중인 1개만 자식으로 `caffeinate -i -t 300` 을 띄우고 CPU 10%,
+/// 나머지(입력 대기)는 caffeinate 없음·CPU 0~0.1%. 그래서
+/// - 자식 중 caffeinate 가 있으면 작업 중 (Claude Code 가 스스로 내는 신호)
+/// - 아니면 자신 + 자손 프로세스의 CPU 합이 임계값 이상이면 작업 중 (빌드·테스트 같은 도구 실행 포함)
+public enum AgentActivity {
+    public struct Status: Equatable, Sendable {
+        public var present = 0
+        public var busy = 0
+        public init(present: Int = 0, busy: Int = 0) { self.present = present; self.busy = busy }
+    }
+
+    public static let cpuThreshold = 2.0 // %
+    /// 모든 에이전트가 조용해진 뒤 이만큼 기다렸다가 교대 (도구 실행 사이의 짧은 공백·응답 대기 흡수)
+    public static let busyGrace: TimeInterval = 5 * 60
+
+    public static func evaluate(_ processes: [ProcessSnapshot], cpu: [Int32: Double],
+                                kinds: [AgentKind] = AgentCatalog.builtIn) -> [AgentKind: Status] {
+        var children: [Int32: [ProcessSnapshot]] = [:]
+        for p in processes { children[p.ppid, default: []].append(p) }
+
+        var result: [AgentKind: Status] = [:]
+        for p in processes {
+            guard let (kind, _) = AgentCatalog.match(p, kinds: kinds) else { continue }
+            result[kind, default: Status()].present += 1
+            if isBusy(p, children: children, cpu: cpu) { result[kind, default: Status()].busy += 1 }
+        }
+        return result
+    }
+
+    public static func isBusy(_ agent: ProcessSnapshot, children: [Int32: [ProcessSnapshot]], cpu: [Int32: Double]) -> Bool {
+        if children[agent.pid, default: []].contains(where: { AgentCatalog.basename($0.executablePath) == "caffeinate" }) {
+            return true
+        }
+        var total = cpu[agent.pid] ?? 0
+        var queue = children[agent.pid, default: []], visited: Set<Int32> = [agent.pid]
+        while let next = queue.popLast(), visited.count < 512 {
+            guard visited.insert(next.pid).inserted else { continue }
+            total += cpu[next.pid] ?? 0
+            queue += children[next.pid, default: []]
+        }
+        return total >= cpuThreshold
     }
 }

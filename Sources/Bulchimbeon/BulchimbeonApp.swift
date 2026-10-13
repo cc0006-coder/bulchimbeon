@@ -90,6 +90,7 @@ struct DutyMenu: View {
             get: { duty.order == .agentWatch },
             set: { on in Task { on ? await duty.startAgentWatch() : await duty.stop() } }
         ))
+        Toggle(L10n.t("열려만 있는 세션도 근무로 인정", "Count idle sessions as working"), isOn: $duty.countIdleSessions)
         if duty.order != .off {
             Button(L10n.t("💤 근무 종료", "💤 Stand down")) { Task { await duty.stop() } }
         }

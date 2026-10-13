@@ -39,6 +39,11 @@ final class DutyController: ObservableObject {
     }
     @Published private(set) var isOnDuty = false
     @Published private(set) var agents: [AgentKind: Int] = [:]
+    @Published private(set) var agentStatus: [AgentKind: AgentActivity.Status] = [:]
+    /// true 면 예전 방식: 에이전트가 열려 있기만 해도 근무 (기본 false = 일할 때만)
+    @Published var countIdleSessions: Bool {
+        didSet { defaults.set(countIdleSessions, forKey: Keys.countIdleSessions) }
+    }
     @Published private(set) var battery: BatteryStatus?
     @Published private(set) var lidSleepDisabled = false
     @Published private(set) var heat: HeatLevel = .normal
@@ -61,6 +66,7 @@ final class DutyController: ObservableObject {
         static let order = "dutyOrder"
         static let orderUntil = "dutyOrderUntil"
         static let simulateHeat = "simulateHeat"
+        static let countIdleSessions = "agentWatchCountsIdle"
     }
 
     private let defaults = UserDefaults.standard
@@ -77,6 +83,8 @@ final class DutyController: ObservableObject {
     private var lastAgentSummary = ""
     private var ticking = false
     private var lastScan = Date.distantPast
+    private var lastBusyAt: Date?
+    private var previousCPU: (times: [Int32: UInt64], at: Date)?
     private var heatAdvised = false
     private var coolSince: Date?
     /// 화면이 잠긴 시각 (당직 근무 인수인계용)
@@ -94,6 +102,7 @@ final class DutyController: ObservableObject {
         // defaults 는 사용자가 `defaults write` 로 바꿀 수 있으므로 허용된 값만 받는다
         let storedFloor = defaults.object(forKey: Keys.batteryFloor) as? Int ?? 20
         batteryFloor = Self.batteryFloors.contains(storedFloor) ? storedFloor : 20
+        countIdleSessions = defaults.bool(forKey: Keys.countIdleSessions)
         lidSleepDisabled = SystemProbes.lidSleepDisabled()
 
         if !lidSleepDisabled && lidEngagedByUs {
@@ -162,8 +171,9 @@ final class DutyController: ObservableObject {
 
     var agentLine: String {
         let summary = AgentCatalog.summary(agents)
-        return summary.isEmpty ? L10n.t("감지된 에이전트 없음", "No agents detected")
-                               : L10n.t("감지된 에이전트: \(summary)", "Agents: \(summary)")
+        guard !summary.isEmpty else { return L10n.t("감지된 에이전트 없음", "No agents detected") }
+        let busy = agentStatus.values.reduce(0) { $0 + $1.busy }
+        return L10n.t("감지된 에이전트: \(summary) · 작업 중 \(busy)", "Agents: \(summary) · \(busy) working")
     }
 
     var batteryLine: String? {
@@ -343,11 +353,14 @@ final class DutyController: ObservableObject {
         let scanAgents = order != .off || Date().timeIntervalSince(lastScan) >= 30
         let customAgents = defaults.stringArray(forKey: Keys.customAgents) ?? []
         let (scanned, battery) = await Task.detached {
-            (scanAgents ? SystemProbes.agents(custom: customAgents) : nil, SystemProbes.battery())
+            (scanAgents ? SystemProbes.processes() : nil, SystemProbes.battery())
         }.value
         now = Date()
         if let scanned {
-            agents = scanned
+            let cpu = cpuPercent(scanned.cpuTimes, at: now)
+            agentStatus = AgentActivity.evaluate(scanned.snapshots, cpu: cpu,
+                                                 kinds: AgentCatalog.builtIn + AgentCatalog.customKinds(customAgents))
+            agents = agentStatus.mapValues(\.present).filter { $0.value > 0 }
             lastScan = now
         }
         self.battery = battery
@@ -411,8 +424,19 @@ final class DutyController: ObservableObject {
                 await standDown(notice: Lines.timeUp(), logText: L10n.t("근무 시간 종료", "Watch time over"))
             }
         case .agentWatch:
-            let present = !agents.isEmpty
-            if present { lastAgentSummary = AgentCatalog.summary(agents) }
+            // 일할 때만 근무: 작업 중인 에이전트가 있거나, 조용해진 지 유예 시간 이내
+            let busy = agentStatus.mapValues(\.busy).filter { $0.value > 0 }
+            let present: Bool
+            if countIdleSessions {
+                present = !agents.isEmpty
+                if present { lastAgentSummary = AgentCatalog.summary(agents) }
+            } else {
+                if !busy.isEmpty {
+                    lastBusyAt = now
+                    lastAgentSummary = AgentCatalog.summary(busy)
+                }
+                present = !busy.isEmpty || (lastBusyAt.map { now.timeIntervalSince($0) < AgentActivity.busyGrace } ?? false)
+            }
 
             switch AgentWatchPolicy.decide(agentsPresent: present, onDuty: isOnDuty,
                                            lowBattery: BatteryPolicy.shouldRetreat(battery, floor: floor) || heat >= .alert) {
@@ -467,6 +491,20 @@ final class DutyController: ObservableObject {
         quote = Lines.pick(Lines.off())
         if let notice { notifier.send(notice) }
         writeLog(logText, kind: .standDown)
+    }
+
+    /// 직전 스캔 대비 프로세스별 CPU 사용률(%). 첫 스캔은 비교 대상이 없어 빈 값.
+    private func cpuPercent(_ times: [Int32: UInt64], at date: Date) -> [Int32: Double] {
+        defer { previousCPU = (times, date) }
+        guard let previous = previousCPU else { return [:] }
+        let wall = date.timeIntervalSince(previous.at) * 1_000_000_000
+        guard wall > 0 else { return [:] }
+        var result: [Int32: Double] = [:]
+        for (pid, time) in times {
+            guard let before = previous.times[pid], time >= before else { continue }
+            result[pid] = Double(time - before) / wall * 100
+        }
+        return result
     }
 
     /// 실제 발열 단계. `defaults write ... simulateHeat advisory|alert|normal` 로 시험할 수 있다 (지우면 실제 값).

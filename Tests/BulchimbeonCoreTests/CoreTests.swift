@@ -405,3 +405,56 @@ import Testing
         #expect(HandoverReport.make(entries: [entry(-10, .onDuty)], awayFrom: t0, until: t0.addingTimeInterval(3600), .ko) == nil, "자리 비우기 전 일")
     }
 }
+
+@Suite struct AgentActivityTests {
+    private let claudePath = "/Users/me/.local/share/claude/versions/2.1.296"
+
+    private func proc(_ pid: Int32, _ ppid: Int32, _ path: String, _ args: [String]) -> ProcessSnapshot {
+        ProcessSnapshot(pid: pid, ppid: ppid, executablePath: path, arguments: args)
+    }
+
+    // 실측: claude-mem 플러그인이 bun 워커로 상시 띄워 두는 헤드리스 세션 (도구 없음)
+    @Test func pluginHelperSessionIsNotAnAgent() {
+        let helper = proc(27088, 22855, claudePath, ["/Users/me/.local/bin/claude", "--output-format", "stream-json",
+            "--input-format", "stream-json", "--tools=", "--no-session-persistence", "--permission-mode=dontAsk"])
+        #expect(AgentCatalog.match(helper) == nil)
+        // 도구를 쓰는 일반 헤드리스 실행은 에이전트
+        let headless = proc(30000, 1, claudePath, ["claude", "-p", "fix the tests", "--output-format", "stream-json"])
+        #expect(AgentCatalog.match(headless)?.kind.id == "claude-code")
+    }
+
+    @Test func candidatesNeedMoreArguments() {
+        #expect(AgentCatalog.isCandidate(executablePath: claudePath, argv0: "claude"))
+        #expect(AgentCatalog.isCandidate(executablePath: "/opt/homebrew/bin/codex", argv0: "codex"))
+        #expect(AgentCatalog.isCandidate(executablePath: "/bin/zsh", argv0: "-zsh") == false)
+    }
+
+    // 실측: 작업 중인 세션만 caffeinate -i -t 300 을 자식으로 띄우고, 입력 대기 세션은 CPU ~0
+    @Test func workingVsIdleSessions() {
+        let processes = [
+            proc(11482, 7109, claudePath, ["claude", "--dangerously-skip-permissions"]),  // 작업 중
+            proc(19418, 11482, "/usr/bin/caffeinate", ["caffeinate"]),
+            proc(6885, 40271, claudePath, ["claude"]),                                     // 입력 대기
+            proc(6900, 6885, "/opt/homebrew/bin/node", ["node", "/x/mcp-server.js"]),      // 대기 중인 MCP 서버
+            proc(4813, 4518, claudePath, ["claude", "-c"]),                                // 빌드 돌리는 중
+            proc(4900, 4813, "/bin/zsh", ["/bin/zsh"]),
+            proc(4901, 4900, "/usr/bin/swift-build", ["swift-build"]),
+        ]
+        let cpu: [Int32: Double] = [11482: 10.6, 6885: 0.0, 6900: 0.3, 4813: 0.1, 4901: 85]
+        let status = AgentActivity.evaluate(processes, cpu: cpu)
+        let claude = status.first { $0.key.id == "claude-code" }?.value
+        #expect(claude == AgentActivity.Status(present: 3, busy: 2), "caffeinate 신호 1 + 자손 빌드 CPU 1, 대기 1")
+    }
+
+    @Test func idleWithoutCPUDataIsNotBusy() {
+        // 첫 스캔엔 CPU 차분이 없다 → caffeinate 신호만으로 판단
+        let processes = [proc(1, 0, claudePath, ["claude"]), proc(2, 0, claudePath, ["claude"]),
+                         proc(3, 2, "/usr/bin/caffeinate", ["caffeinate"])]
+        #expect(AgentActivity.evaluate(processes, cpu: [:]).values.first == AgentActivity.Status(present: 2, busy: 1))
+    }
+
+    @Test func cyclicParentLinksDoNotHang() {
+        let processes = [proc(10, 11, claudePath, ["claude"]), proc(11, 10, "/bin/zsh", ["zsh"])]
+        #expect(AgentActivity.evaluate(processes, cpu: [11: 5]).values.first?.busy == 1)
+    }
+}

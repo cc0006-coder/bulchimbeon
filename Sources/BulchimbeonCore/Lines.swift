@@ -40,8 +40,8 @@ public enum Lines {
 
     public static func handover(_ summary: String, _ lang: Language = L10n.language) -> Notice {
         lang == .ko
-            ? ("근무 교대합니다! 🫡", "\(summary) 작업 종료 확인. 이제 푹 주무십시오.")
-            : ("Shift over! 🫡", "\(summary) finished. Your Mac can sleep now.")
+            ? ("근무 교대합니다! 🫡", "\(summary) 조용해졌습니다 (작업 끝 또는 입력 대기). 이제 푹 주무십시오.")
+            : ("Shift over! 🫡", "\(summary) went quiet (done, or waiting for input). Your Mac can sleep now.")
     }
 
     public static func timeUp(_ lang: Language = L10n.language) -> Notice {
