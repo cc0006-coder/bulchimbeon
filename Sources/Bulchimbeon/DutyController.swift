@@ -259,12 +259,15 @@ final class DutyController: ObservableObject {
         say(Lines.Speech.handoverReport(), seconds: 6)
     }
 
-    /// 녹화용 연출: 대기 → 출근 → 순찰 → 교대 경례 → 취침
+    /// 녹화용 연출: 대기 → 출근 → 순찰 → 폭염 주의보 → 전투휴식 → 복귀 → 교대 경례 → 취침
     func playDemo() async {
         let steps: [(pose: Sprites.Pose, line: String?, seconds: Double)] = [
             (.standby, Lines.Speech.waiting(), 3.5),
             (.duty, Lines.Speech.arrived(), 3),
-            (.duty, nil, 6),
+            (.duty, nil, 2),
+            (.duty, Lines.Speech.heat(), 3),
+            (.heat, Lines.Speech.rest(), 4),
+            (.duty, Lines.Speech.backFromRest(), 3),
             (.salute, Lines.Speech.handover(), 4),
             (.sleeping, nil, 1.5),
         ]
