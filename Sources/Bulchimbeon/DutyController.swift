@@ -10,9 +10,9 @@ enum DutyMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .display: "화면까지 켜두기"
-        case .system: "시스템만 깨우기"
-        case .lid: "덮개 닫아도 근무 (관리자 권한)"
+        case .display: L10n.t("화면 켜둠 (caffeinate -d)", "Keep display on (caffeinate -d)")
+        case .system: L10n.t("화면은 꺼져도 맥은 깨어 있음 (caffeinate -i)", "Display may sleep, Mac stays awake (caffeinate -i)")
+        case .lid: L10n.t("덮개 닫아도 깨어 있음 (관리자 권한)", "Stay awake with lid closed (admin)")
         }
     }
 }
@@ -29,7 +29,8 @@ final class DutyController: ObservableObject {
     static let shared = DutyController()
 
     static let durations: [(title: String, seconds: TimeInterval?)] = [
-        ("30분", 1800), ("1시간", 3600), ("2시간", 7200), ("4시간", 14400), ("무기한", nil),
+        (L10n.t("30분", "30 min"), 1800), (L10n.t("1시간", "1 hour"), 3600), (L10n.t("2시간", "2 hours"), 7200),
+        (L10n.t("4시간", "4 hours"), 14400), (L10n.t("무기한", "Indefinitely"), nil),
     ]
     static let batteryFloors = [10, 20, 30, 0] // 0 = 끄기
 
@@ -41,7 +42,7 @@ final class DutyController: ObservableObject {
     @Published private(set) var battery: BatteryStatus?
     @Published private(set) var lidSleepDisabled = false
     @Published private(set) var now = Date()
-    @Published private(set) var quote = Lines.pick(Lines.off)
+    @Published private(set) var quote = Lines.pick(Lines.off())
     @Published private(set) var mode: DutyMode {
         didSet { defaults.set(mode.rawValue, forKey: Keys.mode) }
     }
@@ -71,6 +72,7 @@ final class DutyController: ObservableObject {
     @Published private var demoPose: Sprites.Pose?
     private var lastAgentSummary = ""
     private var ticking = false
+    private var lastScan = Date.distantPast
     private var timer: Timer?
 
     /// 덮개 플래그를 이 앱이 켰는지. 비정상 종료 후 복구 판단용으로 영속화한다.
@@ -87,8 +89,8 @@ final class DutyController: ObservableObject {
         lidSleepDisabled = SystemProbes.lidSleepDisabled()
 
         if lidSleepDisabled && lidEngagedByUs {
-            writeLog("⚠️ 지난 근무 비정상 종료 — 덮개 잠자기가 꺼진 채 남아 있음")
-            notifier.send(Lines.lidLeftOn)
+            writeLog(L10n.t("⚠️ 지난 근무 비정상 종료 — 덮개 잠자기가 꺼진 채 남아 있음", "⚠️ Last watch ended abnormally — lid sleep still disabled"))
+            notifier.send(Lines.lidLeftOn())
         }
 
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -125,19 +127,24 @@ final class DutyController: ObservableObject {
     }
 
     var statusLine: String {
-        if isOnDuty, let dutyStartedAt {
-            return "근무 중 · \(DutyClock.format(now.timeIntervalSince(dutyStartedAt))) 경과"
+        if isOnDuty, let remainingText {
+            return L10n.t("근무 중 · \(remainingText) 남음", "On duty · \(remainingText) left")
         }
-        return order == .agentWatch ? "에이전트 근무 대기 중" : "취침 중"
+        if isOnDuty, let dutyStartedAt {
+            let elapsed = DutyClock.format(now.timeIntervalSince(dutyStartedAt))
+            return L10n.t("근무 중 · \(elapsed) 경과", "On duty · \(elapsed)")
+        }
+        return order == .agentWatch ? L10n.t("에이전트 근무 대기 중", "Waiting for agents") : L10n.t("취침 중", "Off duty")
     }
 
     var agentLine: String {
         let summary = AgentCatalog.summary(agents)
-        return summary.isEmpty ? "감지된 에이전트 없음" : "감지된 에이전트: \(summary)"
+        return summary.isEmpty ? L10n.t("감지된 에이전트 없음", "No agents detected")
+                               : L10n.t("감지된 에이전트: \(summary)", "Agents: \(summary)")
     }
 
     var batteryLine: String? {
-        battery.map { "🔋 \($0.percent)%" + ($0.onBattery ? "" : " (전원 연결)") }
+        battery.map { "🔋 \($0.percent)%" + ($0.onBattery ? "" : L10n.t(" (전원 연결)", " (charging)")) }
     }
 
     var recentLog: [DutyLogEntry] { Array(log.recent.prefix(10)) }
@@ -153,21 +160,21 @@ final class DutyController: ObservableObject {
     func startTimed(_ duration: TimeInterval?) async {
         order = .timed(until: duration.map { Date().addingTimeInterval($0) })
         await engage()
-        notifier.send(Lines.reportForDuty)
-        say("근무 서겠습니다! 🫡")
-        let length = Self.durations.first { $0.seconds == duration }?.title ?? "무기한"
-        writeLog("근무 투입 — \(length), \(mode.title)")
+        notifier.send(Lines.reportForDuty())
+        say(Lines.Speech.reporting())
+        let length = Self.durations.first { $0.seconds == duration }?.title ?? L10n.t("무기한", "Indefinitely")
+        writeLog(L10n.t("근무 투입 — \(length), \(mode.title)", "On duty — \(length), \(mode.title)"))
     }
 
     func startAgentWatch() async {
         order = .agentWatch
-        quote = Lines.pick(Lines.standby)
-        writeLog("에이전트 근무 대기 시작")
+        quote = Lines.pick(Lines.standby())
+        writeLog(L10n.t("에이전트 근무 대기 시작", "Started waiting for agents"))
         await tick()
     }
 
     func stop() async {
-        await standDown(notice: nil, logText: "근무 종료 (수동)")
+        await standDown(notice: nil, logText: L10n.t("근무 종료 (수동)", "Off duty (manual)"))
     }
 
     func setMode(_ newMode: DutyMode) async {
@@ -184,7 +191,7 @@ final class DutyController: ObservableObject {
         if ok {
             lidEngagedByUs = false
             lidSleepDisabled = false
-            writeLog("덮개 잠자기 복구 완료")
+            writeLog(L10n.t("덮개 잠자기 복구 완료", "Lid sleep restored"))
         }
     }
 
@@ -192,7 +199,7 @@ final class DutyController: ObservableObject {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            writeLog("로그인 자동 실행 설정 실패: \(error.localizedDescription)")
+            writeLog(L10n.t("로그인 자동 실행 설정 실패: ", "Launch at login failed: ") + error.localizedDescription)
         }
         objectWillChange.send()
     }
@@ -208,10 +215,10 @@ final class DutyController: ObservableObject {
     /// 녹화용 연출: 대기 → 출근 → 순찰 → 교대 경례 → 취침
     func playDemo() async {
         let steps: [(pose: Sprites.Pose, line: String?, seconds: Double)] = [
-            (.standby, "에이전트 출근 기다리는 중 👀", 3.5),
-            (.duty, "근무 투입! 이상 무!", 3),
+            (.standby, Lines.Speech.waiting(), 3.5),
+            (.duty, Lines.Speech.arrived(), 3),
             (.duty, nil, 6),
-            (.salute, "근무 교대합니다! 🫡", 4),
+            (.salute, Lines.Speech.handover(), 4),
             (.sleeping, nil, 1.5),
         ]
         for step in steps {
@@ -247,27 +254,29 @@ final class DutyController: ObservableObject {
         if action == .none { return }
         if action == .expired {
             order = .off
-            writeLog("앱이 꺼져 있는 동안 근무 시간 종료")
+            writeLog(L10n.t("앱이 꺼져 있는 동안 근무 시간 종료", "Watch ended while the app was closed"))
             return
         }
 
         // 로그인 직후 예고 없는 관리자 암호 창은 피싱처럼 보인다 → 덮개 근무는 시스템 근무로 복귀
         if mode == .lid && !lidSleepDisabled {
             mode = .system
-            notifier.send(Lines.lidResumeFallback)
-            writeLog("덮개 근무 → 시스템 근무로 복귀 (관리자 재승인 필요)")
+            notifier.send(Lines.lidResumeFallback())
+            writeLog(L10n.t("덮개 근무 → 시스템 근무로 복귀 (관리자 재승인 필요)", "Lid-closed watch → resumed as system watch (admin approval needed)"))
         }
 
         switch action {
         case .agentWatch:
             order = .agentWatch
-            quote = Lines.pick(Lines.standby)
-            writeLog("근무 복귀 — 에이전트 근무")
+            quote = Lines.pick(Lines.standby())
+            writeLog(L10n.t("근무 복귀 — 에이전트 근무", "Back on watch — agent watch"))
         case .timed(let until):
             order = .timed(until: until)
             await engage()
-            say("근무 복귀했습니다! 🫡")
-            writeLog("근무 복귀 — " + (until.map { "남은 시간 \(DutyClock.format($0.timeIntervalSinceNow))" } ?? "무기한"))
+            say(Lines.Speech.resumed())
+            let left = until.map { DutyClock.format($0.timeIntervalSinceNow) }
+            writeLog(L10n.t("근무 복귀 — ", "Back on watch — ")
+                     + (left.map { L10n.t("남은 시간 \($0)", "\($0) left") } ?? L10n.t("무기한", "indefinitely")))
         case .none, .expired:
             break
         }
@@ -280,17 +289,23 @@ final class DutyController: ObservableObject {
         ticking = true
         defer { ticking = false }
 
+        // 근무가 없으면 프로세스 스캔은 30초에 한 번 (메뉴 표시용), 근무 중엔 5초마다
+        let scanAgents = order != .off || Date().timeIntervalSince(lastScan) >= 30
         let customAgents = defaults.stringArray(forKey: Keys.customAgents) ?? []
-        let (agents, battery) = await Task.detached {
-            (SystemProbes.agents(custom: customAgents), SystemProbes.battery())
+        let (scanned, battery) = await Task.detached {
+            (scanAgents ? SystemProbes.agents(custom: customAgents) : nil, SystemProbes.battery())
         }.value
         now = Date()
-        self.agents = agents
+        if let scanned {
+            agents = scanned
+            lastScan = now
+        }
         self.battery = battery
         let floor = batteryFloor > 0 ? batteryFloor : nil
 
         if isOnDuty, BatteryPolicy.shouldRetreat(battery, floor: floor), let battery {
-            await standDown(notice: Lines.batteryRetreat(battery.percent), logText: "배터리 \(battery.percent)% — 근무 철수")
+            await standDown(notice: Lines.batteryRetreat(battery.percent),
+                            logText: L10n.t("배터리 \(battery.percent)% — 근무 철수", "Battery \(battery.percent)% — stood down"))
             return
         }
 
@@ -300,8 +315,8 @@ final class DutyController: ObservableObject {
         case .timed(let until):
             if let until, now >= until {
                 saluteUntil = Date().addingTimeInterval(10)
-                say("근무 끝! 충성! 🫡", seconds: 8)
-                await standDown(notice: Lines.timeUp, logText: "근무 시간 종료")
+                say(Lines.Speech.timeUp(), seconds: 8)
+                await standDown(notice: Lines.timeUp(), logText: L10n.t("근무 시간 종료", "Watch time over"))
             }
         case .agentWatch:
             let present = !agents.isEmpty
@@ -312,15 +327,15 @@ final class DutyController: ObservableObject {
             case .engage:
                 await engage()
                 notifier.send(Lines.agentArrived(lastAgentSummary))
-                say("근무 투입! 이상 무!")
-                writeLog("근무 투입 — \(lastAgentSummary) 출근")
+                say(Lines.Speech.arrived())
+                writeLog(L10n.t("근무 투입 — \(lastAgentSummary) 출근", "On duty — \(lastAgentSummary) clocked in"))
             case .handover:
                 await disengage()
-                quote = Lines.pick(Lines.standby)
+                quote = Lines.pick(Lines.standby())
                 saluteUntil = Date().addingTimeInterval(10)
                 notifier.send(Lines.handover(lastAgentSummary))
-                say("근무 교대합니다! 🫡", seconds: 8)
-                writeLog("근무 교대 — \(lastAgentSummary) 작업 종료, 이상 무")
+                say(Lines.Speech.handover(), seconds: 8)
+                writeLog(L10n.t("근무 교대 — \(lastAgentSummary) 작업 종료, 이상 무", "Shift over — \(lastAgentSummary) finished, all clear"))
             case .none:
                 break
             }
@@ -335,15 +350,15 @@ final class DutyController: ObservableObject {
                 lidSleepDisabled = true
             } else {
                 mode = .system
-                notifier.send(Lines.lidFallback)
-                writeLog("덮개 근무 승인 거부 — 시스템 근무로 대체")
+                notifier.send(Lines.lidFallback())
+                writeLog(L10n.t("덮개 근무 승인 거부 — 시스템 근무로 대체", "Lid-closed watch denied — switched to system watch"))
             }
         }
         assertion.acquire(mode == .display ? .display : .system,
                           reason: "Bulchimbeon on duty: keeping AI agents awake") // pmset 은 비ASCII 를 빈 문자열로 표시
         if !isOnDuty { dutyStartedAt = Date() }
         isOnDuty = assertion.isHeld
-        quote = Lines.pick(Lines.onDuty)
+        quote = Lines.pick(Lines.onDuty())
     }
 
     private func disengage() async {
@@ -356,7 +371,7 @@ final class DutyController: ObservableObject {
     private func standDown(notice: (title: String, body: String)?, logText: String) async {
         await disengage()
         order = .off
-        quote = Lines.pick(Lines.off)
+        quote = Lines.pick(Lines.off())
         if let notice { notifier.send(notice) }
         writeLog(logText)
     }

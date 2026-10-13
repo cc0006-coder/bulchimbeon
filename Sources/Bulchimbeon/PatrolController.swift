@@ -45,9 +45,20 @@ final class PatrolController: ObservableObject {
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { _ in MainActor.assumeIsolated { PatrolController.shared.layoutWindow() } }
 
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 20, repeats: true) { _ in
+        scheduleTimer(interval: Self.idleInterval)
+    }
+
+    // 보일 때만 20fps, 숨겨져 있으면 1초에 한 번만 깨어나 상태를 확인한다 (에너지)
+    private static let activeInterval: TimeInterval = 1.0 / 20
+    private static let idleInterval: TimeInterval = 1
+
+    private func scheduleTimer(interval: TimeInterval) {
+        guard timer?.timeInterval != interval else { return }
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             MainActor.assumeIsolated { PatrolController.shared.step() }
         }
+        timer?.tolerance = interval * 0.2
     }
 
     // MARK: - 창
@@ -62,7 +73,8 @@ final class PatrolController: ObservableObject {
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        // .fullScreenAuxiliary 를 빼서 전체화면 앱(발표·화면 공유·영상) 위에는 나타나지 않게 한다
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         panel.contentView = view
         return panel
     }
@@ -100,7 +112,9 @@ final class PatrolController: ObservableObject {
         let dt = min(now.timeIntervalSince(lastStep), 0.2)
         lastStep = now
         refreshVisibility()
-        guard let panel, panel.isVisible else { return }
+        let visible = panel?.isVisible == true
+        scheduleTimer(interval: visible ? Self.activeInterval : Self.idleInterval)
+        guard visible, let panel else { return }
         clock += dt
 
         let sprite: PixelSprite

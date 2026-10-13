@@ -29,11 +29,17 @@ public struct ProcessSnapshot: Sendable {
 
 public enum AgentCatalog {
     /// 판별 근거 (진단 출력용)
-    public enum Reason: String, Sendable {
-        case executableName = "실행 파일 이름"
-        case argv0 = "실행 명령(argv[0])"
-        case installPath = "설치 경로"
-        case script = "스크립트 경로"
+    public enum Reason: Sendable {
+        case executableName, argv0, installPath, script
+
+        public var label: String {
+            switch self {
+            case .executableName: L10n.t("실행 파일 이름", "executable name")
+            case .argv0: L10n.t("실행 명령(argv[0])", "command (argv[0])")
+            case .installPath: L10n.t("설치 경로", "install path")
+            case .script: L10n.t("스크립트 경로", "script path")
+            }
+        }
     }
 
     public static let builtIn: [AgentKind] = [

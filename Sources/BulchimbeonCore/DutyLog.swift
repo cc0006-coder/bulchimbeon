@@ -11,7 +11,6 @@ public struct DutyLogEntry: Equatable, Sendable {
 
     static let formatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "ko_KR")
         f.dateFormat = "MM-dd HH:mm"
         return f
     }()

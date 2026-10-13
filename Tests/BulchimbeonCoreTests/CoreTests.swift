@@ -257,3 +257,44 @@ import Testing
         #expect(result.rows == [".K.", ".YK"])
     }
 }
+
+@Suite struct L10nTests {
+    private func hasHangul(_ s: String) -> Bool {
+        s.unicodeScalars.contains { (0xAC00...0xD7A3).contains($0.value) }
+    }
+
+    private func allLines(_ lang: L10n.Language) -> [String] {
+        var lines = Lines.onDuty(lang) + Lines.standby(lang) + Lines.off(lang)
+        let notices = [Lines.reportForDuty(lang), Lines.agentArrived("Claude Code", lang), Lines.handover("Claude Code", lang),
+                       Lines.timeUp(lang), Lines.batteryRetreat(15, lang), Lines.lidFallback(lang),
+                       Lines.lidResumeFallback(lang), Lines.lidLeftOn(lang)]
+        lines += notices.flatMap { [$0.title, $0.body] }
+        lines += [Lines.Speech.reporting(lang), Lines.Speech.arrived(lang), Lines.Speech.handover(lang),
+                  Lines.Speech.timeUp(lang), Lines.Speech.resumed(lang), Lines.Speech.waiting(lang)]
+        return lines
+    }
+
+    @Test func detectsLanguage() {
+        #expect(L10n.detect(["ko-KR", "en-US"]) == .ko)
+        #expect(L10n.detect(["en-US", "ko-KR"]) == .en)
+        #expect(L10n.detect(["ja-JP"]) == .en)
+        #expect(L10n.detect([]) == .en)
+    }
+
+    @Test func englishHasNoKorean() {
+        let lines = allLines(.en)
+        #expect(lines.allSatisfy { !$0.isEmpty })
+        #expect(lines.filter(hasHangul).isEmpty, "영어 문구에 한글: \(lines.filter(hasHangul))")
+    }
+
+    @Test func koreanIsKorean() {
+        let lines = allLines(.ko)
+        #expect(lines.filter { !hasHangul($0) }.isEmpty, "한국어 문구에 한글 없음: \(lines.filter { !hasHangul($0) })")
+    }
+
+    @Test func bothLanguagesHaveSameShape() {
+        #expect(Lines.onDuty(.ko).count == Lines.onDuty(.en).count)
+        #expect(Lines.standby(.ko).count == Lines.standby(.en).count)
+        #expect(Lines.off(.ko).count == Lines.off(.en).count)
+    }
+}

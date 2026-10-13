@@ -3,6 +3,11 @@
 > **Your Mac's night-watch soldier.**
 > 내가 자는 동안 AI 에이전트 곁에서 맥을 깨워두고, 일이 끝나면 "근무 교대합니다!" 하고 재워주는 메뉴바 이등병.
 
+> 🇺🇸 **English:** Bulchimbeon (불침번, "night-watch duty" in the Korean army) keeps your Mac awake **only while AI agents
+> like Claude Code, Codex or Cursor are running**, then salutes *"Shift over!"* and lets it sleep. A pixel-art private
+> patrols under your menu bar. The UI follows your system language (Korean / English).
+> `brew install --cask s3onghyun/tap/bulchimbeon`
+
 ![불침번 데모](docs/media/demo.gif)
 
 | 상태 | 이등병 | 언제 |
@@ -19,6 +24,7 @@
 메뉴바 바로 아래, 화면 맨 위를 이등병이 손전등을 들고 좌우로 순찰한다.
 근무 대기 중엔 오른쪽 구석에서 두리번, 교대 땐 그 자리에서 경례하며 말풍선으로 "근무 교대합니다! 🫡". 취침 중엔 퇴근(숨김).
 클릭은 모두 통과하고, 마우스가 다가오면 반투명해져 비켜준다. 메뉴에서 끄기·크기(2배/3배) 조절.
+전체화면 앱(발표·화면 공유·영상) 위에는 나타나지 않는다.
 
 ## 왜 만들었나
 
@@ -37,10 +43,11 @@ sudo pmset disablesleep 1     # 되돌리는 걸 잊으면 배터리 0%
 |------|------|
 | 🤖 에이전트 근무 (자동 교대) | Claude Code · Codex · Gemini CLI · Cursor · Copilot CLI · Aider · OpenCode 감지 (+사용자 지정) → 있으면 근무 투입, 모두 끝나면 교대 알림 |
 | 🪖 근무 서기 | 30분 / 1시간 / 2시간 / 4시간 / 무기한 |
-| 근무 형태 | 화면까지 켜두기 · 시스템만 깨우기 · **덮개 닫아도 근무** (관리자 권한) |
+| 근무 형태 | 화면 켜둠 (`caffeinate -d`) · 화면은 꺼져도 맥은 깨어 있음 (`caffeinate -i`) · **덮개 닫아도 깨어 있음** (관리자 권한) |
 | 🔋 배터리 철수 | 배터리 사용 중 잔량이 기준(기본 20%) 이하면 강제 철수 |
 | ⚠️ 덮개 안전장치 | 근무 종료·앱 종료 시 `disablesleep` 원복, 비정상 종료 후 재실행하면 복구 버튼 |
 | 🔁 근무 유지 | 앱 재시작·업데이트·재부팅 후에도 남은 근무 시간 그대로 복귀 (덮개 근무는 보안상 시스템 근무로 복귀 후 재승인 안내) |
+| 🌐 한국어·영어 | 시스템 언어를 따라 메뉴·알림·말풍선 전환 |
 | 📒 근무일지 | `~/Library/Application Support/Bulchimbeon/duty-log.txt` |
 
 ## 설치
@@ -89,9 +96,9 @@ git tag v0.3.1 && git push origin v0.3.1   # → Release 워크플로가 빌드�
 
 | 근무 형태 | 내부 동작 |
 |-----------|----------|
-| 화면까지 켜두기 | `IOPMAssertion` `PreventUserIdleDisplaySleep` |
-| 시스템만 깨우기 | `IOPMAssertion` `PreventUserIdleSystemSleep` |
-| 덮개 닫아도 근무 | 위 + `pmset -a disablesleep 1` (덮개 닫힘은 하드웨어 트리거라 assertion 으로 못 막음) |
+| 화면 켜둠 | `IOPMAssertion` `PreventUserIdleDisplaySleep` — `caffeinate -d` 와 같음 |
+| 화면은 꺼져도 맥은 깨어 있음 | `IOPMAssertion` `PreventUserIdleSystemSleep` — `caffeinate -i` 와 같음 (기본값, 절전) |
+| 덮개 닫아도 깨어 있음 | 위 + `pmset -a disablesleep 1` (덮개 닫힘은 하드웨어 트리거라 assertion 으로 못 막음) |
 
 ### 에이전트 감지
 

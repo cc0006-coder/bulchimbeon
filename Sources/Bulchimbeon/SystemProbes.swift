@@ -39,7 +39,8 @@ enum SystemProbes {
     /// 프롬프트에 실행할 명령을 그대로 보여줘, 사용자가 무엇에 암호를 주는지 알 수 있게 한다.
     static func setLidSleepDisabled(_ disabled: Bool) -> Bool {
         let command = "/usr/bin/pmset -a disablesleep \(disabled ? 1 : 0)"
-        let prompt = "불침번이 덮개 잠자기 설정을 바꾸려 합니다.\n실행 명령: \(command)"
+        let prompt = L10n.t("불침번이 덮개 잠자기 설정을 바꾸려 합니다.\n실행 명령: ",
+                            "Bulchimbeon wants to change the lid sleep setting.\nCommand: ") + command
         let script = "do shell script \"\(command)\" with prompt \"\(prompt)\" with administrator privileges"
         return run("/usr/bin/osascript", ["-e", script]) != nil
     }
@@ -76,15 +77,17 @@ enum ProcessScanner {
     static func diagnose(custom: [String]) -> String {
         let kinds = AgentCatalog.builtIn + AgentCatalog.customKinds(custom)
         let processes = snapshots()
-        var lines = ["불침번 에이전트 감지 진단 (UID \(getuid()) 프로세스 \(processes.count)개 검사)", ""]
+        var lines = [L10n.t("불침번 에이전트 감지 진단 (UID \(getuid()) 프로세스 \(processes.count)개 검사)",
+                            "Bulchimbeon agent detection (checked \(processes.count) processes of UID \(getuid()))"), ""]
         for process in processes {
             guard let (kind, reason) = AgentCatalog.match(process, kinds: kinds) else { continue }
-            lines.append("  ✔ \(kind.displayName)  pid \(process.pid)  근거: \(reason.rawValue)")
-            lines.append("      실행 파일: \(process.executablePath)")
+            lines.append("  ✔ \(kind.displayName)  pid \(process.pid)  " + L10n.t("근거: ", "matched by: ") + reason.label)
+            lines.append("      " + L10n.t("실행 파일: ", "executable: ") + process.executablePath)
         }
-        if lines.count == 2 { lines.append("  감지된 에이전트 없음") }
-        lines += ["", "사용자 지정 에이전트: \(custom.isEmpty ? "없음" : custom.joined(separator: ", "))",
-                  "추가: defaults write io.github.s3onghyun.bulchimbeon customAgents -array <실행 파일 이름>"]
+        if lines.count == 2 { lines.append("  " + L10n.t("감지된 에이전트 없음", "No agents detected")) }
+        lines += ["", L10n.t("사용자 지정 에이전트: ", "Custom agents: ")
+                      + (custom.isEmpty ? L10n.t("없음", "none") : custom.joined(separator: ", ")),
+                  L10n.t("추가: ", "Add: ") + "defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>"]
         return lines.joined(separator: "\n")
     }
 
