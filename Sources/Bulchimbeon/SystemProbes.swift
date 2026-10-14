@@ -1,7 +1,9 @@
 import BulchimbeonCore
 import Foundation
+import AppKit
 import Darwin
 import IOKit.ps
+import IOKit.pwr_mgt
 
 enum SystemProbes {
     /// 내장 배터리 상태. 데스크톱 맥이면 nil.
@@ -95,9 +97,13 @@ enum ProcessScanner {
             let busy = AgentActivity.isBusy(process, children: children, cpu: [:])
             lines.append("  ✔ \(kind.displayName)  pid \(process.pid)  " + L10n.t("근거: ", "matched by: ") + reason.label
                          + (busy ? L10n.t("  · 작업 중", "  · working") : ""))
+            if let cwd = process.cwd { lines.append("      " + L10n.t("작업 폴더: ", "cwd: ") + cwd) }
             lines.append("      " + L10n.t("실행 파일: ", "executable: ") + process.executablePath)
         }
         if lines.count == 2 { lines.append("  " + L10n.t("감지된 에이전트 없음", "No agents detected")) }
+        let holders = PowerHolders.summarize(PowerHolderProbe.assertions(), ownPID: getpid())
+        lines += ["", L10n.t("화면을 막는 다른 앱: ", "Also keeping the display on: ") + (holders.display.isEmpty ? "-" : holders.display.joined(separator: ", ")),
+                  L10n.t("잠들지 못하게 하는 다른 앱: ", "Also keeping the Mac awake: ") + (holders.system.isEmpty ? "-" : holders.system.joined(separator: ", "))]
         lines += ["", L10n.t("사용자 지정 에이전트: ", "Custom agents: ")
                       + (custom.isEmpty ? L10n.t("없음", "none") : custom.joined(separator: ", ")),
                   L10n.t("추가: ", "Add: ") + "defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>"]
@@ -134,7 +140,18 @@ enum ProcessScanner {
         if AgentCatalog.isCandidate(executablePath: path, argv0: args.first) {
             args = arguments(pid, limit: 64)
         }
-        return ProcessSnapshot(pid: pid, ppid: parentPID(pid), executablePath: path, arguments: args)
+        let isAgentCandidate = AgentCatalog.isCandidate(executablePath: path, argv0: args.first)
+        return ProcessSnapshot(pid: pid, ppid: parentPID(pid), executablePath: path, arguments: args,
+                               cwd: isAgentCandidate ? workingDirectory(pid) : nil)
+    }
+
+    private static func workingDirectory(_ pid: pid_t) -> String? {
+        var info = proc_vnodepathinfo()
+        let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) == size else { return nil }
+        return withUnsafeBytes(of: info.pvi_cdir.vip_path) { raw in
+            String(cString: raw.bindMemory(to: CChar.self).baseAddress!)
+        }
     }
 
     private static func parentPID(_ pid: pid_t) -> Int32 {
@@ -166,5 +183,34 @@ enum ProcessScanner {
         defer { bytes.withUnsafeMutableBytes { _ = memset_s($0.baseAddress, $0.count, 0, $0.count) } }
         guard sysctl(&mib, 3, &bytes, &size, nil, 0) == 0 else { return [] }
         return ProcArgs.parse(Array(bytes.prefix(size)), limit: limit)
+    }
+}
+
+/// 다른 앱의 잠자기 방지 assertion 목록
+enum PowerHolderProbe {
+    static func assertions() -> [PowerHolders.Assertion] {
+        var unmanaged: Unmanaged<CFDictionary>?
+        guard IOPMCopyAssertionsByProcess(&unmanaged) == kIOReturnSuccess,
+              let byPID = unmanaged?.takeRetainedValue() as? [NSNumber: [[String: Any]]] else { return [] }
+        var result: [PowerHolders.Assertion] = []
+        for (pidNumber, list) in byPID {
+            let pid = pidNumber.int32Value
+            for item in list {
+                guard let type = item["AssertType"] as? String else { continue }
+                // root 프로세스는 이름 조회가 막히므로 assertion 에 담긴 "Process Name" 을 먼저 쓴다
+                let name = appName(pid) ?? item["Process Name"] as? String ?? processName(pid)
+                result.append(.init(pid: pid, processName: name, type: type, name: item["AssertName"] as? String ?? ""))
+            }
+        }
+        return result
+    }
+
+    private static func appName(_ pid: Int32) -> String? {
+        NSRunningApplication(processIdentifier: pid)?.localizedName
+    }
+
+    private static func processName(_ pid: Int32) -> String {
+        var buffer = [CChar](repeating: 0, count: 256)
+        return proc_name(pid, &buffer, UInt32(buffer.count)) > 0 ? String(cString: buffer) : "pid \(pid)"
     }
 }

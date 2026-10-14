@@ -500,3 +500,37 @@ import Testing
         #expect(history.add([1: 100], at: t0).isEmpty)
     }
 }
+
+@Suite struct PowerHoldersTests {
+    private func a(_ pid: Int32, _ name: String, _ type: String, _ label: String = "") -> PowerHolders.Assertion {
+        .init(pid: pid, processName: name, type: type, name: label)
+    }
+
+    // 실측: "에이전트가 끝났는데 화면이 안 꺼진다"의 실제 원인 중 하나가 Vivaldi 영상 재생이었다
+    @Test func summarizesRealWorldSnapshot() {
+        let snapshot = [
+            a(351, "powerd", "PreventUserIdleSystemSleep", "Powerd - Prevent sleep while display is on"),
+            a(999, "Bulchimbeon", "PreventUserIdleDisplaySleep", "Bulchimbeon on duty"),
+            a(46300, "caffeinate", "PreventUserIdleSystemSleep", "caffeinate command-line tool"),
+            a(402, "bluetoothd", "PreventUserIdleSystemSleep", "com.apple.BTStack"),
+            a(45807, "Vivaldi", "NoDisplaySleepAssertion", "Video Wake Lock"),
+            a(45807, "Vivaldi", "PreventUserIdleSystemSleep", "Video Wake Lock"),
+            a(423, "coreaudiod", "PreventUserIdleSystemSleep", "com.apple.audio.context"),
+        ]
+        let s = PowerHolders.summarize(snapshot, ownPID: 999, .ko)
+        #expect(s.display == ["Vivaldi (영상)"])
+        #expect(s.system == ["caffeinate", "오디오 재생"], "자기 자신·powerd·bluetoothd 제외, 화면 쪽에 나온 앱은 중복 제외")
+    }
+
+    @Test func ownAppIsNeverAnotherHolder() {
+        // 진단은 별도 프로세스라 PID 가 달라도, 설치본 불침번은 "다른 앱"이 아니다
+        let s = PowerHolders.summarize([a(40601, "불침번", "PreventUserIdleDisplaySleep"),
+                                        a(40602, "Bulchimbeon", "PreventUserIdleSystemSleep")], ownPID: 1, .ko)
+        #expect(s.display.isEmpty && s.system.isEmpty)
+    }
+
+    @Test func emptyWhenOnlyNoise() {
+        let s = PowerHolders.summarize([a(351, "powerd", "PreventUserIdleSystemSleep")], ownPID: 1, .en)
+        #expect(s.display.isEmpty && s.system.isEmpty)
+    }
+}

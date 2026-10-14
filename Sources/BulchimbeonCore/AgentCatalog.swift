@@ -18,12 +18,15 @@ public struct ProcessSnapshot: Sendable {
     public let ppid: Int32
     /// 실제 실행 파일 경로 (proc_pidpath)
     public let executablePath: String
+    /// 작업 폴더 (에이전트 후보만 수집 — 진단 출력용)
+    public let cwd: String?
     /// argv. 에이전트 후보·스크립트 러너만 앞부분 전체, 그 외엔 argv[0] 만 담긴다.
     public let arguments: [String]
 
-    public init(pid: Int32 = 0, ppid: Int32 = 0, executablePath: String, arguments: [String]) {
+    public init(pid: Int32 = 0, ppid: Int32 = 0, executablePath: String, arguments: [String], cwd: String? = nil) {
         self.pid = pid
         self.ppid = ppid
+        self.cwd = cwd
         self.executablePath = executablePath
         self.arguments = arguments
     }

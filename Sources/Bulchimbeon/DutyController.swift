@@ -51,6 +51,8 @@ final class DutyController: ObservableObject {
     static let graceOptions = [1, 3, 5, 10]
     /// 에이전트 근무 중 "왜 근무 중인지 / 언제 교대하는지" (메뉴 표시용)
     @Published private(set) var watchDetail: String?
+    /// 이 앱 말고 화면 꺼짐 / 잠자기를 막고 있는 다른 앱
+    @Published private(set) var otherHolders: (display: [String], system: [String]) = ([], [])
     @Published private(set) var battery: BatteryStatus?
     @Published private(set) var lidSleepDisabled = false
     @Published private(set) var heat: HeatLevel = .normal
@@ -365,9 +367,10 @@ final class DutyController: ObservableObject {
         // 근무가 없으면 프로세스 스캔은 30초에 한 번 (메뉴 표시용), 근무 중엔 5초마다
         let scanAgents = order != .off || Date().timeIntervalSince(lastScan) >= 30
         let customAgents = defaults.stringArray(forKey: Keys.customAgents) ?? []
-        let (scanned, battery) = await Task.detached {
-            (scanAgents ? SystemProbes.processes() : nil, SystemProbes.battery())
+        let (scanned, battery, assertions) = await Task.detached {
+            (scanAgents ? SystemProbes.processes() : nil, SystemProbes.battery(), PowerHolderProbe.assertions())
         }.value
+        otherHolders = PowerHolders.summarize(assertions, ownPID: getpid())
         now = Date()
         if let scanned {
             let cpu = cpuHistory.add(scanned.cpuTimes, at: now)

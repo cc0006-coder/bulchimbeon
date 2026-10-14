@@ -129,6 +129,12 @@ struct DutyMenu: View {
         Text(duty.agentLine)
         if let batteryLine = duty.batteryLine { Text(batteryLine) }
         if let heatLine = duty.heatLine { Text(heatLine) }
+        if !duty.otherHolders.display.isEmpty {
+            Text(L10n.t("🖥️ 화면을 막는 다른 앱: ", "🖥️ Also keeping the display on: ") + duty.otherHolders.display.joined(separator: ", "))
+        }
+        if !duty.otherHolders.system.isEmpty {
+            Text(L10n.t("💤 잠들지 못하게 하는 다른 앱: ", "💤 Also keeping the Mac awake: ") + duty.otherHolders.system.joined(separator: ", "))
+        }
         Menu(L10n.t("📒 근무일지", "📒 Duty log")) {
             if duty.recentLog.isEmpty {
                 Text(L10n.t("기록 없음", "No entries"))
