@@ -14,8 +14,8 @@ final class DutyController: ObservableObject {
         (L10n.t("30분", "30 min"), 1800), (L10n.t("1시간", "1 hour"), 3600), (L10n.t("2시간", "2 hours"), 7200),
         (L10n.t("4시간", "4 hours"), 14400), (L10n.t("무기한", "Indefinitely"), nil),
     ]
-    static let batteryFloors = [10, 20, 30, 0] // 0 = 끄기
-    static let graceOptions = [1, 3, 5, 10]
+    static let batteryFloors = SettingsValues.batteryFloors
+    static let graceOptions = SettingsValues.graceMinutes
 
     @Published private(set) var engine: DutyEngine
 
@@ -47,15 +47,15 @@ final class DutyController: ObservableObject {
     var lidSleepDisabled: Bool { engine.lidSleepDisabled }
 
     private enum Keys {
-        static let mode = "dutyMode"
-        static let batteryFloor = "batteryFloor"
-        static let lidEngagedByUs = "lidEngagedByUs"
-        static let customAgents = "customAgents"
-        static let order = "dutyOrder"
-        static let orderUntil = "dutyOrderUntil"
-        static let simulateHeat = "simulateHeat"
-        static let countIdleSessions = "agentWatchCountsIdle"
-        static let graceMinutes = "agentGraceMinutes"
+        static let mode = SettingsKey.dutyMode.rawValue
+        static let batteryFloor = SettingsKey.batteryFloor.rawValue
+        static let lidEngagedByUs = SettingsKey.lidEngagedByUs.rawValue
+        static let customAgents = SettingsKey.customAgents.rawValue
+        static let order = SettingsKey.dutyOrder.rawValue
+        static let orderUntil = SettingsKey.dutyOrderUntil.rawValue
+        static let simulateHeat = SettingsKey.simulateHeat.rawValue
+        static let countIdleSessions = SettingsKey.agentWatchCountsIdle.rawValue
+        static let graceMinutes = SettingsKey.agentGraceMinutes.rawValue
     }
 
     private let defaults = UserDefaults.standard
@@ -76,10 +76,10 @@ final class DutyController: ObservableObject {
 
     private init() {
         // defaults 는 사용자가 `defaults write` 로 바꿀 수 있으므로 허용된 값만 받는다
-        let storedFloor = defaults.object(forKey: Keys.batteryFloor) as? Int ?? 20
-        let storedGrace = defaults.object(forKey: Keys.graceMinutes) as? Int ?? 5
-        let floor = Self.batteryFloors.contains(storedFloor) ? storedFloor : 20
-        let grace = Self.graceOptions.contains(storedGrace) ? storedGrace : 5
+        let storedFloor = defaults.object(forKey: Keys.batteryFloor) as? Int ?? SettingsValues.defaultBatteryFloor
+        let storedGrace = defaults.object(forKey: Keys.graceMinutes) as? Int ?? SettingsValues.defaultGraceMinutes
+        let floor = Self.batteryFloors.contains(storedFloor) ? storedFloor : SettingsValues.defaultBatteryFloor
+        let grace = Self.graceOptions.contains(storedGrace) ? storedGrace : SettingsValues.defaultGraceMinutes
         let countIdle = defaults.bool(forKey: Keys.countIdleSessions)
         let lidDisabled = SystemProbes.lidSleepDisabled()
         var lidByUs = defaults.bool(forKey: Keys.lidEngagedByUs)

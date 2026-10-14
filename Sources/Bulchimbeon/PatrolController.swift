@@ -10,7 +10,7 @@ import BulchimbeonCore
 @MainActor
 final class PatrolController: ObservableObject {
     static let shared = PatrolController(duty: .shared)
-    static let scales = [2, 3]
+    static let scales = SettingsValues.patrolScales
 
     @Published var enabled: Bool {
         didSet { defaults.set(enabled, forKey: Keys.enabled); stateTick() }
@@ -20,8 +20,8 @@ final class PatrolController: ObservableObject {
     }
 
     private enum Keys {
-        static let enabled = "patrolEnabled"
-        static let scale = "patrolScale"
+        static let enabled = SettingsKey.patrolEnabled.rawValue
+        static let scale = SettingsKey.patrolScale.rawValue
     }
 
     private let duty: DutyController
@@ -41,8 +41,8 @@ final class PatrolController: ObservableObject {
     private init(duty: DutyController) {
         self.duty = duty
         enabled = defaults.object(forKey: Keys.enabled) as? Bool ?? true
-        let storedScale = defaults.object(forKey: Keys.scale) as? Int ?? 2
-        scale = Self.scales.contains(storedScale) ? storedScale : 2
+        let storedScale = defaults.object(forKey: Keys.scale) as? Int ?? SettingsValues.defaultPatrolScale
+        scale = Self.scales.contains(storedScale) ? storedScale : SettingsValues.defaultPatrolScale
     }
 
     func start() {

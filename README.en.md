@@ -183,8 +183,9 @@ rectangles so both the 16 pt menu bar icon and the 1024 px app icon stay crisp.
 
 ## Roadmap
 
-Tracked as [milestones](https://github.com/s3onghyun/bulchimbeon/milestones). 1.0 means behavior, settings keys and
-command-line flags stop changing.
+Tracked as [milestones](https://github.com/s3onghyun/bulchimbeon/milestones). 1.0 means settings keys, command-line
+flags and the duty log format stop changing: see the [compatibility promise](docs/compatibility.md) (in Korean; the
+tables are self-explanatory) and the [CHANGELOG](CHANGELOG.md).
 
 - [x] Pixel-art private, patrol mode, Korean/English UI
 - [x] Detect working vs. idle agents

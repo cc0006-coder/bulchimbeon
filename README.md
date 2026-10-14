@@ -185,7 +185,7 @@ pmset -g assertions | grep Bulchimbeon   # 근무 중인지 확인
 
 ## 로드맵
 
-[마일스톤](https://github.com/s3onghyun/bulchimbeon/milestones)으로 관리한다. 1.0 = 동작·설정 키·실행 인자가 더 이상 바뀌지 않는다는 약속.
+[마일스톤](https://github.com/s3onghyun/bulchimbeon/milestones)으로 관리한다. 1.0 = 설정 키·실행 인자·근무일지 형식이 더 이상 바뀌지 않는다는 약속 ([호환성 약속](docs/compatibility.md), 변경 내역은 [CHANGELOG](CHANGELOG.md)).
 
 - [x] 치비 이등병 픽셀아트, 순찰 모드, 한국어·영어
 - [x] 에이전트 **작업 중 / 대기 구분** (열려만 있는 세션은 세지 않음)

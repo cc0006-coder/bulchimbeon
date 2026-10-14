@@ -11,8 +11,8 @@ struct BulchimbeonApp: App {
 
     init() {
         // Bulchimbeon.app/Contents/MacOS/Bulchimbeon --diagnose → 진단 출력 후 종료 (UI 없음)
-        if CommandLine.arguments.contains("--diagnose") {
-            let custom = UserDefaults.standard.stringArray(forKey: "customAgents") ?? []
+        if CommandLine.arguments.contains(LaunchArgument.diagnose.rawValue) {
+            let custom = UserDefaults.standard.stringArray(forKey: SettingsKey.customAgents.rawValue) ?? []
             print(ProcessScanner.diagnose(custom: custom))
             exit(0)
         }
@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // open -a Bulchimbeon --args --agent-watch  → 실행과 동시에 에이전트 근무
-        if CommandLine.arguments.contains("--agent-watch") {
+        if CommandLine.arguments.contains(LaunchArgument.agentWatch.rawValue) {
             Task { @MainActor in await DutyController.shared.startAgentWatch() }
         }
     }
