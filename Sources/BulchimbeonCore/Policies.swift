@@ -157,9 +157,20 @@ public enum LidCommands {
     /// 자기 자신(이 명령을 실행하는 셸)과 매칭되지 않도록 `[g]` 정규식 트릭을 쓴다.
     static func markerPattern(_ pid: Int32) -> String { "bulchimbeon-watchdo[g]-\(pid)" }
 
+    /// 실측(이슈 #4, 실제 관리자 권한):
+    /// 1. `do shell script ... with administrator privileges` 는 끝날 때 같은 프로세스 그룹을 정리해서
+    ///    nohup 으로 띄운 감시병이 함께 죽었다 (일반 권한에서는 살아남음) → setsid() 로 새 세션 분리.
+    /// 2. `A && B &` 는 셸이 묶음 전체를 하위 셸로 띄워, 그 하위 셸이 osascript 출력 통로를 쥔 채
+    ///    감시병을 기다렸다 → osascript 가 끝나지 않아 앱이 결과를 못 받음.
+    /// 그래서 perl 을 포그라운드로 실행하고, perl 이 자식을 fork → 자식이 setsid() 를 마친 것을 파이프로
+    /// 확인한 뒤에만 부모가 종료한다 (분리 전에 정리당하는 경쟁 상태 없음). 표준 입출력은 /dev/null.
+    /// 시스템 기본 perl(SIP 보호 /usr/bin)만 쓴다 — 앱 바이너리를 root 로 실행하지 않는다
+    /// (사용자 권한으로 수정 가능한 파일이라 권한 상승 통로가 된다).
     public static func enable(pid: Int32, pmset: String = "/usr/bin/pmset") -> String {
         let watch = ": \(marker(pid)); while /bin/kill -0 \(pid) 2>/dev/null; do /bin/sleep 5; done; \(pmset) -a disablesleep 0"
-        return "\(pmset) -a disablesleep 1 && /usr/bin/nohup /bin/sh -c '\(watch)' >/dev/null 2>&1 &"
+        let detach = "pipe(my $r, my $w); my $p = fork(); die unless defined $p; "
+            + "if ($p) { close $w; <$r>; exit 0 } close $r; POSIX::setsid(); close $w; exec @ARGV"
+        return "\(pmset) -a disablesleep 1 && /usr/bin/perl -MPOSIX -e '\(detach)' /bin/sh -c '\(watch)' </dev/null >/dev/null 2>&1"
     }
 
     public static func disable(pid: Int32, pmset: String = "/usr/bin/pmset") -> String {

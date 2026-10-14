@@ -358,6 +358,7 @@ import Testing
             #expect(cmd.contains("4321"))
         }
         #expect(LidCommands.enable(pid: 1).contains("disablesleep 1"))
+        #expect(LidCommands.enable(pid: 1).contains("POSIX::setsid()"), "관리자 권한 실행 정리에서 살아남도록 새 세션으로 분리")
         #expect(LidCommands.disable(pid: 1).contains("disablesleep 0"))
     }
 
@@ -386,12 +387,29 @@ import Testing
         let shell = Process()
         shell.executableURL = URL(fileURLWithPath: "/bin/sh")
         shell.arguments = ["-c", LidCommands.enable(pid: app.processIdentifier, pmset: fakePmset.path)]
+        let started = Date()
         try shell.run()
         shell.waitUntilExit()
         #expect(shell.terminationStatus == 0)
+        // 실측 버그: 명령이 감시병을 기다리느라 끝나지 않아 osascript 가 영원히 대기했다
+        #expect(Date().timeIntervalSince(started) < 2, "켜기 명령은 감시병을 띄우고 바로 끝나야 한다")
 
         try await Task.sleep(for: .seconds(1))
         #expect(try String(contentsOf: log, encoding: .utf8) == "-a disablesleep 1\n", "켜기만 실행됨")
+        // 감시병은 자기 프로세스 그룹의 리더여야 한다 (부모 그룹이 정리돼도 살아남음)
+        let ps = Process()
+        ps.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        ps.arguments = ["-f", LidCommands.watchdogPattern(pid: app.processIdentifier)]
+        let out = Pipe(); ps.standardOutput = out
+        try ps.run(); ps.waitUntilExit()
+        let found = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            .split(separator: "\n").compactMap { Int32($0) }
+        #expect(!found.isEmpty, "감시병 프로세스가 떠 있어야 한다")
+        // 핵심 성질: 띄운 쪽(이 테스트)의 프로세스 그룹에서 빠져나왔는가. 부모 그룹이 정리돼도 살아남는다.
+        // (감시병이 kill/sleep 을 실행하려 잠깐 fork 한 자식도 같은 명령줄로 잡히므로 "리더인가"가 아니라 이걸 본다)
+        for pid in found {
+            #expect(getpgid(pid) != getpgrp(), "감시병이 원래 프로세스 그룹에 남아 있음: pid \(pid)")
+        }
 
         app.terminate() // 앱 강제 종료
         app.waitUntilExit()
