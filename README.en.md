@@ -3,6 +3,8 @@
 > **Your Mac's night-watch soldier.**
 > A menu bar app that keeps your Mac awake **only while your AI coding agents are actually working**,
 > then salutes *"Shift over!"* and lets it sleep.
+>
+> **No hooks, no daemon, no installed root helper. One app. macOS 13 and later.**
 
 *Bulchimbeon* (불침번) is the night-watch duty in the Korean army: someone stays up all night so everyone else can sleep.
 A pixel-art private takes that shift for your Mac.
@@ -54,6 +56,26 @@ Bulchimbeon stays awake **only while an agent is working** and hands the Mac bac
 | 🖥️ Who else is holding the Mac awake | The menu shows other apps blocking sleep, e.g. "Vivaldi (video)" |
 | 🌐 Korean / English | Follows the system language by default; pick one from **언어 / Language** in the menu |
 | 📒 Duty log | `~/Library/Application Support/Bulchimbeon/duty-log.txt` |
+
+## Compared with similar apps
+
+[Adrafinil](https://github.com/kageroumado/adrafinil) solves the same problem and came first. The two take opposite
+approaches, so pick the one that fits. (As of October 2026.)
+
+| | Bulchimbeon | Adrafinil |
+|---|---|---|
+| How it knows an agent is working | **Watches from outside**: the agent's `caffeinate` child and CPU use | **The agent tells it**: hooks (acquire on prompt submit, release when the reply ends) plus observation |
+| What installing changes | **Nothing.** One app; agent config files are never touched | Hooks added to agent configs (one-click install/uninstall), a user daemon, a root helper |
+| macOS | **13 and later** | 26.4 and later |
+| Awake with the lid closed | Admin password each time you turn it on; a watchdog guarantees the setting is restored | Approved once at install, no password afterwards |
+| Agent asks to stay awake (long builds) | — | CLI and MCP tool |
+| Heat | Warns even with the lid open; when it gets too hot, rests and **resumes automatically once cool** | Force-releases on overheating while the lid is closed |
+| Distribution | Ad-hoc signed (notarization planned), personal Homebrew tap | Notarized, official Homebrew cask |
+
+**Choose Adrafinil** if you're on macOS 26.4+ and want hooks to track turns precisely, or want agents to request
+wake time themselves.
+**Choose Bulchimbeon** if you're on macOS 13–15, don't want anything installed into your agent configs or system,
+or would rather have a private on watch.
 
 ## Install
 
