@@ -3,7 +3,7 @@
 > **Your Mac's night-watch soldier.**
 > 내가 자는 동안 AI 에이전트 곁에서 맥을 깨워두고, 일이 끝나면 "근무 교대합니다!" 하고 재워주는 메뉴바 이등병.
 
-> 🇺🇸 **English:** [README.en.md](README.en.md)
+> 🌐 [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
 ![불침번 데모](docs/media/demo.gif)
 
@@ -67,6 +67,7 @@ brew update && brew upgrade --cask bulchimbeon
 > **첫 실행:** 아직 Apple 공증(notarization)을 받지 않은 ad-hoc 서명 앱이라 macOS 가 실행을 막는다.
 > 한 번 열기를 시도한 뒤 **시스템 설정 → 개인정보 보호 및 보안 → "그래도 열기"** 를 누르면 된다.
 > (macOS 15 부터는 우클릭 → 열기로 우회되지 않는다.)
+> 공증 전에는 macOS 가 알림 권한을 주지 않아서, 알림이 **"스크립트 편집기"** 이름으로 표시된다.
 
 ### 받은 파일 검증 (선택)
 

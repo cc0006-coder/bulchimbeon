@@ -7,7 +7,7 @@
 *Bulchimbeon* (불침번) is the night-watch duty in the Korean army: someone stays up all night so everyone else can sleep.
 A pixel-art private takes that shift for your Mac.
 
-[한국어 README](README.md)
+[한국어](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
 ![Bulchimbeon demo](docs/media/demo.gif)
 
@@ -70,6 +70,7 @@ macOS 13+, universal (Apple Silicon and Intel).
 > **First launch:** the app is ad-hoc signed and not notarized by Apple yet, so macOS blocks it once.
 > Try to open it, then go to **System Settings → Privacy & Security → "Open Anyway"**.
 > (Since macOS 15, right-click → Open no longer bypasses this.)
+> Until it's notarized, macOS won't grant it notification permission, so notifications show up as **"Script Editor"**.
 
 ### Verify the download (optional)
 
