@@ -138,6 +138,7 @@ public struct DutyEngine: Sendable {
         guard isOnDuty else { return [] }
         var effects: [DutyEffect] = leavingLid && lidEngagedByUs ? [.restoreLid] : []
         effects += engage(now: now)
+        effects.append(.log(L10n.t("근무 방식 변경 — \(newMode.title)", "Watch mode changed — \(newMode.title)"), .other))
         return effects
     }
 

@@ -38,6 +38,19 @@ import Testing
         #expect(engine.pose(at: at(1815)) == .sleeping)
     }
 
+    /// 실측 (2026-10-14): 근무 중 방식을 바꿨는데 일지엔 이전 방식만 남아 실제 assertion과 어긋났다
+    @Test func modeChangeOnDutyIsLogged() {
+        var engine = DutyEngine(now: t0)
+        _ = engine.startTimed(seconds: 3600, label: "1시간", now: t0)
+        let change = engine.setMode(.display, now: at(60))
+        #expect(change.first == .acquire(.display))
+        #expect(has(change) { if case .log(let text, .other) = $0 { text.contains("caffeinate -d") } else { false } })
+        #expect(engine.setMode(.display, now: at(70)).isEmpty, "같은 방식이면 아무 일 없음")
+
+        engine = DutyEngine(now: t0)
+        #expect(engine.setMode(.display, now: t0).isEmpty, "근무 중이 아니면 설정만 바뀜")
+    }
+
     // MARK: 에이전트 근무
 
     @Test func agentClocksInAndHandsOverAfterGrace() {
