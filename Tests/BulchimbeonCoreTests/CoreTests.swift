@@ -303,6 +303,17 @@ import Testing
         #expect(lines.filter { !hasHangul($0) }.isEmpty, "한국어 문구에 한글 없음: \(lines.filter { !hasHangul($0) })")
     }
 
+    @Test func languagePreferenceRoundTrip() {
+        #expect(L10n.Preference(appDomainLanguages: nil) == .system)
+        #expect(L10n.Preference(appDomainLanguages: ["ko"]) == .ko)
+        #expect(L10n.Preference(appDomainLanguages: ["ko-KR", "en"]) == .ko)
+        #expect(L10n.Preference(appDomainLanguages: ["en-US"]) == .en)
+        #expect(L10n.Preference(appDomainLanguages: ["ja"]) == .system, "지원하지 않는 언어는 시스템 따름")
+        for p in L10n.Preference.allCases {
+            #expect(L10n.Preference(appDomainLanguages: p.appleLanguages) == p)
+        }
+    }
+
     @Test func bothLanguagesHaveSameShape() {
         #expect(Lines.onDuty(.ko).count == Lines.onDuty(.en).count)
         #expect(Lines.standby(.ko).count == Lines.standby(.en).count)

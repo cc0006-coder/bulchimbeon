@@ -153,6 +153,12 @@ struct DutyMenu: View {
 
         Divider()
 
+        Picker("언어 / Language", selection: Binding(
+            get: { duty.languagePreference },
+            set: { duty.setLanguage($0) }
+        )) {
+            ForEach(L10n.Preference.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
         Toggle(L10n.t("로그인 시 자동 실행", "Launch at login"), isOn: Binding(
             get: { duty.launchAtLogin },
             set: { duty.setLaunchAtLogin($0) }

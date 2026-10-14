@@ -250,6 +250,36 @@ final class DutyController: ObservableObject {
         }
     }
 
+    // MARK: - 언어
+
+    var languagePreference: L10n.Preference {
+        let appDomain = Bundle.main.bundleIdentifier.flatMap { defaults.persistentDomain(forName: $0) }
+        return L10n.Preference(appDomainLanguages: appDomain?["AppleLanguages"] as? [String])
+    }
+
+    /// 언어를 바꾸고 앱을 다시 띄운다. 근무 상태는 저장돼 있어 재시작 후 이어진다.
+    func setLanguage(_ preference: L10n.Preference) {
+        guard preference != languagePreference else { return }
+        if let languages = preference.appleLanguages {
+            defaults.set(languages, forKey: "AppleLanguages")
+        } else {
+            defaults.removeObject(forKey: "AppleLanguages")
+        }
+        defaults.synchronize()
+        writeLog(L10n.t("언어 변경 → ", "Language → ") + preference.title)
+        relaunch()
+    }
+
+    /// 1초 뒤 같은 앱을 다시 연다. 앱 경로는 셸 문자열에 넣지 않고 인자($0)로 넘긴다.
+    private func relaunch() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "sleep 1; exec /usr/bin/open \"$0\"", Bundle.main.bundlePath]
+        process.environment = ["PATH": "/usr/bin:/bin"]
+        try? process.run()
+        NSApp.terminate(nil)
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
