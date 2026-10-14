@@ -22,6 +22,7 @@
 | 순찰 오버레이 창 | 클릭 가로채기, 입력 탈취 | `ignoresMouseEvents` — 모든 입력 통과. 화면 내용·키 입력을 읽지 않음 (마우스 좌표만 사용, 별도 권한 불필요) |
 | 바이너리 | 런타임 코드 주입, 디버거 attach | hardened runtime 서명 (`codesign --options runtime`) |
 | 공급망 | 의존성 탈취, CI Action 변조 | 서드파티 의존성 0개. CI Action 은 커밋 SHA 고정, `permissions: contents: read`, Dependabot 으로 갱신 |
+| 알림 (공증 전 대체 경로) | 알림 문구로 AppleScript 인젝션 | `osascript` 에 문구를 스크립트 문자열로 넣지 않고 argv 로 전달 (따옴표·역슬래시가 문자 그대로 표시되는 것 실측), 길이 제한 |
 | 배포 | 변조된 zip | CI 에서만 릴리스 빌드, SHA-256 체크섬 + Sigstore 빌드 출처 증명 (`gh attestation verify`) |
 
 ## 하지 않는 것

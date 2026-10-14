@@ -399,27 +399,55 @@ final class DutyController: ObservableObject {
     }
 }
 
-/// 알림 전송. `swift run` 처럼 번들 밖에서 실행되면 UNUserNotificationCenter 가 크래시하므로 stdout 으로 대체한다.
+/// 알림 전송.
+///
+/// 실측(#5): macOS 는 Apple 개발자 서명(Team ID)이 없는 앱에 알림 권한을 주지 않는다
+/// (UNErrorDomain Code=1 "Notifications are not allowed for this application"). 공증(#6) 전까지는
+/// AppleScript `display notification` 으로 대신 보낸다 — 아이콘은 스크립트 편집기로 보인다.
+/// 문구는 AppleScript 문자열에 끼워 넣지 않고 argv 로 넘겨 인젝션 여지가 없다.
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private let center: UNUserNotificationCenter? =
         Bundle.main.bundleIdentifier != nil ? .current() : nil
+    /// 권한이 확인되기 전까지는 대체 경로를 쓴다 (서명 없는 빌드에서는 끝까지 대체 경로)
+    private var authorized = false
 
     override init() {
         super.init()
         center?.delegate = self
-        center?.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        center?.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, error in
+            self?.authorized = granted
+            if ProcessInfo.processInfo.environment["BULCHIMBEON_DEBUG"] != nil {
+                FileHandle.standardError.write(Data("[notify] authorization granted=\(granted) error=\(String(describing: error))\n".utf8))
+            }
+        }
     }
 
     func send(_ notice: (title: String, body: String)) {
-        guard let center else {
-            print("[불침번] \(notice.title) — \(notice.body)")
+        if let center, authorized {
+            let content = UNMutableNotificationContent()
+            content.title = notice.title
+            content.body = notice.body
+            content.sound = .default
+            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
             return
         }
-        let content = UNMutableNotificationContent()
-        content.title = notice.title
-        content.body = notice.body
-        content.sound = .default
-        center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        Self.sendViaAppleScript(notice)
+    }
+
+    private static func sendViaAppleScript(_ notice: (title: String, body: String)) {
+        Task.detached {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", "on run argv",
+                                 "-e", "display notification (item 2 of argv) with title (item 1 of argv)",
+                                 "-e", "end run",
+                                 String(notice.title.prefix(200)), String(notice.body.prefix(500))]
+            process.environment = ["PATH": "/usr/bin:/bin"]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            try? process.run()
+            process.waitUntilExit()
+        }
     }
 
     // 메뉴가 열려 있어 앱이 활성 상태여도 배너를 보여준다
