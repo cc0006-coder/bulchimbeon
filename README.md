@@ -3,10 +3,7 @@
 > **Your Mac's night-watch soldier.**
 > 내가 자는 동안 AI 에이전트 곁에서 맥을 깨워두고, 일이 끝나면 "근무 교대합니다!" 하고 재워주는 메뉴바 이등병.
 
-> 🇺🇸 **English:** Bulchimbeon (불침번, "night-watch duty" in the Korean army) keeps your Mac awake **only while AI agents
-> like Claude Code, Codex or Cursor are running**, then salutes *"Shift over!"* and lets it sleep. A pixel-art private
-> patrols under your menu bar. The UI follows your system language (Korean / English).
-> `brew install --cask s3onghyun/tap/bulchimbeon`
+> 🇺🇸 **English:** [README.en.md](README.en.md)
 
 ![불침번 데모](docs/media/demo.gif)
 
@@ -51,6 +48,7 @@ sudo pmset disablesleep 1     # 되돌리는 걸 잊으면 배터리 0%
 | ⚠️ 근무지 이탈 감지 | 잠자기 방지가 어떤 이유로든 풀려 있으면 즉시 재투입 |
 | 🕵️ 당직 감시병 | 덮개 모드 중 앱이 강제 종료돼도 5초 안에 원래 잠자기 설정으로 복구 |
 | 📋 당직 근무 인수인계 | 10분 이상 자리를 비웠다 돌아오면 그사이 근무 내역 보고 ("근무 교대 1회 · 폭염 1회 … 이상입니다! 🫡") |
+| 🖥️ 다른 앱 표시 | 이 앱 말고 잠자기·화면 꺼짐을 막는 앱도 메뉴에 표시 (예: "Vivaldi (영상)") |
 | 🔁 근무 유지 | 앱 재시작·업데이트·재부팅 후에도 남은 근무 시간 그대로 복귀 (덮개 근무는 보안상 시스템 근무로 복귀 후 재승인 안내) |
 | 🌐 한국어·영어 | 기본은 시스템 언어. 메뉴 **언어 / Language** 에서 따로 고를 수 있음 (시스템은 영어인데 앱은 한국어로 등) |
 | 📒 근무일지 | `~/Library/Application Support/Bulchimbeon/duty-log.txt` |
@@ -75,8 +73,8 @@ brew update && brew upgrade --cask bulchimbeon
 릴리스 zip 은 GitHub Actions 에서 빌드되고 빌드 출처 증명(attestation)이 붙는다.
 
 ```bash
-gh attestation verify Bulchimbeon-0.3.0.zip --repo s3onghyun/bulchimbeon
-shasum -a 256 -c Bulchimbeon-0.3.0.zip.sha256
+gh attestation verify Bulchimbeon-<버전>.zip --repo s3onghyun/bulchimbeon
+shasum -a 256 -c Bulchimbeon-<버전>.zip.sha256
 ```
 
 ## 개발
@@ -86,18 +84,21 @@ Xcode 없이 Command Line Tools 만 있으면 된다.
 ```bash
 make app        # dist/Bulchimbeon.app 생성 (ad-hoc 서명)
 make run        # 빌드 후 실행
-make test       # 단위 테스트
+make test       # 단위·시나리오 테스트
 make icons      # 스프라이트 수정 후 앱 아이콘·미리보기 재생성
 
 # 실행과 동시에 에이전트 근무 시작
 open dist/Bulchimbeon.app --args --agent-watch
+
+# 엔진이 내리는 명령을 stderr 로 출력 (추적용)
+BULCHIMBEON_DEBUG=1 dist/Bulchimbeon.app/Contents/MacOS/Bulchimbeon
 ```
 
 ### 릴리스
 
 ```bash
-git tag v0.3.1 && git push origin v0.3.1   # → Release 워크플로가 빌드·증명·업로드
-./scripts/bump-cask.sh 0.3.1               # → homebrew-tap 의 Cask 버전·sha256 갱신
+git tag vX.Y.Z && git push origin vX.Y.Z   # → Release 워크플로가 빌드·증명·업로드
+./scripts/bump-cask.sh X.Y.Z               # → 체크섬·출처 증명 검증 후 homebrew-tap 갱신
 ```
 
 ## 동작 원리
@@ -148,16 +149,19 @@ pmset -g assertions | grep Bulchimbeon   # 근무 중인지 확인
 스프라이트는 `Sources/BulchimbeonCore/Sprites.swift` 의 ASCII 그리드다. 문자 하나가 픽셀 하나이고,
 메뉴바(1pt=1px)와 1024px 앱 아이콘을 같은 원본에서 벡터 사각형으로 그려 어느 크기에서도 선명하다.
 
-설계 상세: [docs/design.md](docs/design.md)
+근무 판단은 시스템 호출이 없는 상태 머신(`DutyEngine`)에 있고, 가짜 시계로 시나리오 테스트한다.
+설계 상세 (검토했지만 넣지 않은 신호 포함): [docs/design.md](docs/design.md)
 
 ## 로드맵
 
-- [x] 치비 이등병 픽셀아트 아이콘·애니메이션
-- [ ] 에이전트 **유휴 감지** (프로세스 생존이 아니라 실제 작업 중인지)
+[마일스톤](https://github.com/s3onghyun/bulchimbeon/milestones)으로 관리한다. 1.0 = 동작·설정 키·실행 인자가 더 이상 바뀌지 않는다는 약속.
+
+- [x] 치비 이등병 픽셀아트, 순찰 모드, 한국어·영어
+- [x] 에이전트 **작업 중 / 대기 구분** (열려만 있는 세션은 세지 않음)
+- [x] Homebrew cask (개인 tap)
+- [ ] Apple 공증 + Homebrew 공식 cask (Developer ID 필요)
 - [ ] Privileged helper 로 덮개 모드 암호 프롬프트 제거
 - [ ] 해금 스킨: 순라꾼(조선시대 불침번), 선비(현량자고)
-- [x] Homebrew cask
-- [ ] Apple 공증 (Developer ID 필요)
 
 ## 보안
 
@@ -165,7 +169,7 @@ pmset -g assertions | grep Bulchimbeon   # 근무 중인지 확인
 
 - 네트워크 통신 없음, 서드파티 의존성 0개
 - 셸 인젝션 불가 구조, 절대 경로 실행, 최소 환경변수
-- 프로세스 인자 원문은 저장·기록하지 않음
+- 프로세스 인자 원문은 저장·기록하지 않음, AI 대화 기록은 읽지 않음
 - hardened runtime 서명, 릴리스 SHA-256 체크섬·빌드 출처 증명, SHA 고정 CI
 
 ## 기여
