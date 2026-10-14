@@ -2,17 +2,21 @@ import AppKit
 import BulchimbeonCore
 
 /// 순찰 모드: 메뉴바 바로 아래, 화면 맨 위를 이등병이 돌아다니는 투명 오버레이.
-/// 클릭은 모두 통과하고, 마우스가 다가오면 반투명해져 비켜준다.
+/// 클릭은 모두 통과하고, 마우스가 다가오면 반투명해져 비켜준다 (마우스 위치는 보일 때만 0.5초마다 확인).
+///
+/// 에너지: 걷기·프레임 교체는 Core Animation(화면 합성기)에 통째로 맡긴다.
+/// 앱은 "여기서 저기까지 N초 동안 걸어" 한 번만 지시하고, 끝에 도착했을 때와 상태가 바뀔 때만 깨어난다.
+/// (실측: 앱이 15fps 로 직접 위치를 옮기던 방식은 5초당 ~330회 깨어남 → 이슈 #1)
 @MainActor
 final class PatrolController: ObservableObject {
     static let shared = PatrolController(duty: .shared)
     static let scales = [2, 3]
 
     @Published var enabled: Bool {
-        didSet { defaults.set(enabled, forKey: Keys.enabled); refreshVisibility() }
+        didSet { defaults.set(enabled, forKey: Keys.enabled); stateTick() }
     }
     @Published var scale: Int {
-        didSet { defaults.set(scale, forKey: Keys.scale); layoutWindow() }
+        didSet { defaults.set(scale, forKey: Keys.scale); layoutWindow(); restartMotion() }
     }
 
     private enum Keys {
@@ -24,11 +28,12 @@ final class PatrolController: ObservableObject {
     private let defaults = UserDefaults.standard
     private let view = PatrolView()
     private var panel: NSPanel?
-    private var timer: Timer?
-    private var lastStep = Date()
-    private var clock: TimeInterval = 0
-    private var x: CGFloat = -1 // 스프라이트 왼쪽 끝 (창 좌표). -1 = 아직 배치 전
+    private var stateTimer: Timer?
+    private var legTimer: Timer?
+    private var mouseTimer: Timer?
+    private var currentPose: Sprites.Pose?
     private var facingRight = false
+    private var placed = false
 
     private let walkSpeed: CGFloat = 45 // pt/s
     private let margin: CGFloat = 24
@@ -43,27 +48,24 @@ final class PatrolController: ObservableObject {
     func start() {
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
-        ) { _ in MainActor.assumeIsolated { PatrolController.shared.layoutWindow() } }
+        ) { _ in MainActor.assumeIsolated { PatrolController.shared.layoutWindow(); PatrolController.shared.restartMotion() } }
 
-        scheduleTimer(interval: Self.idleInterval)
-    }
-
-    // 보일 때만 20fps, 숨겨져 있으면 1초에 한 번만 깨어나 상태를 확인한다 (에너지)
-    private static let activeInterval: TimeInterval = 1.0 / 15 // 픽셀아트엔 15fps 로 충분
-    private static let idleInterval: TimeInterval = 1
-
-    private func scheduleTimer(interval: TimeInterval) {
-        guard timer?.timeInterval != interval else { return }
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
-            MainActor.assumeIsolated { PatrolController.shared.step() }
+        // 포즈·말풍선·표시 여부만 1초에 한 번 확인 (애니메이션은 화면 합성기가 돌린다)
+        let timer = Timer(timeInterval: 1, repeats: true) { _ in
+            MainActor.assumeIsolated { PatrolController.shared.stateTick() }
         }
-        timer?.tolerance = interval * 0.2
+        timer.tolerance = 0.3
+        RunLoop.main.add(timer, forMode: .common)
+        stateTimer = timer
+
+        stateTick()
     }
 
     // MARK: - 창
 
     private var spriteSize: CGFloat { CGFloat(16 * scale) }
+    private var maxX: CGFloat { (panel?.frame.width ?? 0) - spriteSize - margin }
+    private var cornerX: CGFloat { maxX }
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
@@ -82,14 +84,10 @@ final class PatrolController: ObservableObject {
     private func layoutWindow() {
         guard let panel, let screen = NSScreen.screens.first else { return }
         // 메뉴바 바로 아래, 화면 전체 폭
-        let frame = NSRect(x: screen.frame.minX, y: screen.visibleFrame.maxY - spriteSize,
-                           width: screen.frame.width, height: spriteSize)
-        panel.setFrame(frame, display: true)
-        if x >= 0 { x = min(max(x, margin), maxX) } // 첫 배치(-1)는 refreshVisibility 가 구석으로
+        panel.setFrame(NSRect(x: screen.frame.minX, y: screen.visibleFrame.maxY - spriteSize,
+                              width: screen.frame.width, height: spriteSize), display: true)
+        view.pixel = CGFloat(scale)
     }
-
-    private var maxX: CGFloat { (panel?.frame.width ?? 0) - spriteSize - margin }
-    private var cornerX: CGFloat { maxX }
 
     private func refreshVisibility() {
         let visible = enabled && duty.pose != .sleeping
@@ -98,127 +96,182 @@ final class PatrolController: ObservableObject {
                 panel = makePanel()
                 layoutWindow()
             }
-            if x < 0 { x = cornerX }
+            if !placed { view.place(at: cornerX); placed = true } // 첫 등장은 오른쪽 구석
             panel?.orderFrontRegardless()
+            startMouseWatch()
         } else {
             panel?.orderOut(nil)
+            currentPose = nil
+            legTimer?.invalidate()
+            mouseTimer?.invalidate()
+            mouseTimer = nil
         }
     }
 
-    // MARK: - 애니메이션 (20fps)
+    // MARK: - 상태 (1초마다)
 
-    private func step() {
-        let now = Date()
-        let dt = min(now.timeIntervalSince(lastStep), 0.2)
-        lastStep = now
+    private func stateTick() {
         refreshVisibility()
-        let visible = panel?.isVisible == true
-        scheduleTimer(interval: visible ? Self.activeInterval : Self.idleInterval)
-        guard visible, let panel else { return }
-        clock += dt
-
-        let sprite: PixelSprite
-        switch duty.pose {
-        case .duty:
-            // 좌우 왕복 순찰
-            x += (facingRight ? 1 : -1) * walkSpeed * CGFloat(dt)
-            if x >= maxX { x = maxX; facingRight = false }
-            if x <= margin { x = margin; facingRight = true }
-            sprite = walkFrame()
-        case .standby where abs(x - cornerX) > 1:
-            // 대기 위치(오른쪽 구석)로 걸어간다
-            facingRight = cornerX > x
-            let move = walkSpeed * CGFloat(dt)
-            x = abs(cornerX - x) <= move ? cornerX : x + (facingRight ? move : -move)
-            sprite = walkFrame()
-        case .standby, .salute, .patrol, .sleeping, .heat:
-            sprite = frame(of: duty.pose, interval: 0.5)
+        guard panel?.isVisible == true else { return }
+        let pose = duty.pose
+        if pose != currentPose {
+            currentPose = pose
+            restartMotion()
         }
-
-        // 레이어 위치·내용만 바꾼다 — 화면 폭 전체를 다시 그리지 않으므로 CPU 가 거의 들지 않는다
-        view.update(sprite: sprite, x: x.rounded(), speech: duty.currentSpeech, pixel: CGFloat(scale))
-        fadeForMouse(panel)
+        view.setSpeech(duty.currentSpeech)
     }
 
-    private func fadeForMouse(_ panel: NSPanel) {
-        // 마우스가 근처에 오면 반투명하게 비켜준다
-        let spriteRect = NSRect(x: panel.frame.minX + x, y: panel.frame.minY,
+    // MARK: - 움직임 (화면 합성기에 위임)
+
+    private func restartMotion() {
+        guard panel?.isVisible == true, let pose = currentPose else { return }
+        legTimer?.invalidate()
+        let x = min(max(view.currentX, margin), maxX)
+        switch pose {
+        case .duty:
+            walk(from: x, to: facingRight ? maxX : margin)
+        case .standby where abs(x - cornerX) > 1:
+            walk(from: x, to: cornerX) // 대기 위치(오른쪽 구석)로 걸어간 뒤 두리번
+        case .standby, .salute, .patrol, .sleeping, .heat:
+            view.stand(at: x, frames: Sprites.frames(pose), interval: 0.5)
+        }
+    }
+
+    private func walk(from x: CGFloat, to target: CGFloat) {
+        facingRight = target > x
+        let frames = Sprites.frames(.patrol).map { facingRight ? $0 : $0.mirrored() }
+        let duration = max(0.1, abs(target - x) / walkSpeed)
+        view.walk(from: x, to: target, duration: duration, frames: frames, interval: 0.25)
+        let timer = Timer(timeInterval: duration, repeats: false) { _ in
+            MainActor.assumeIsolated { PatrolController.shared.arrived() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        legTimer = timer
+    }
+
+    /// 끝(또는 대기 위치)에 도착: 근무 중이면 돌아서고, 대기면 두리번
+    private func arrived() {
+        guard let pose = currentPose else { return }
+        if pose == .duty { facingRight.toggle() }
+        restartMotion()
+    }
+
+    // MARK: - 마우스
+
+    /// 이등병이 보일 때만 초당 2번 마우스 위치를 본다.
+    /// (실측: 전역 mouseMoved 감시는 마우스를 쓰는 동안 이벤트가 초당 수십 번 와서 깨어남이 줄지 않았다)
+    private func startMouseWatch() {
+        guard mouseTimer == nil else { return }
+        let timer = Timer(timeInterval: 0.5, repeats: true) { _ in
+            MainActor.assumeIsolated { PatrolController.shared.fadeForMouse() }
+        }
+        timer.tolerance = 0.2
+        RunLoop.main.add(timer, forMode: .common)
+        mouseTimer = timer
+    }
+
+    private func fadeForMouse() {
+        guard let panel, panel.isVisible else { return }
+        let spriteRect = NSRect(x: panel.frame.minX + view.currentX, y: panel.frame.minY,
                                 width: spriteSize, height: spriteSize).insetBy(dx: -24, dy: -24)
         let target: CGFloat = spriteRect.contains(NSEvent.mouseLocation) ? 0.2 : 1
-        if abs(panel.alphaValue - target) > 0.01 {
-            panel.alphaValue += (target - panel.alphaValue) * 0.3
+        guard abs(panel.alphaValue - target) > 0.01 else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            panel.animator().alphaValue = target
         }
-    }
-
-    private func walkFrame() -> PixelSprite {
-        let sprite = frame(of: .patrol, interval: 0.25)
-        return facingRight ? sprite : sprite.mirrored()
-    }
-
-    private func frame(of pose: Sprites.Pose, interval: TimeInterval) -> PixelSprite {
-        let frames = Sprites.frames(pose)
-        return frames[Int(clock / interval) % frames.count]
     }
 }
 
-/// 순찰 오버레이 뷰. 이등병·말풍선을 미리 렌더링한 이미지 레이어로 두고 위치만 옮긴다.
-/// (프로파일링 결과: 매 프레임 draw(_:) 방식은 화면 폭 전체 backing store 합성 비용이 CPU 7~9% 를 차지했다)
+/// 순찰 오버레이 뷰. 이등병은 미리 렌더링한 이미지 레이어, 걷기·프레임 교체는 Core Animation 이 돌린다.
+/// 말풍선은 이등병 레이어의 하위 레이어라 함께 움직인다.
 final class PatrolView: NSView {
-    private let spriteLayer = CALayer()
-    private let bubbleLayer = CALayer()
+    private let soldier = CALayer()
+    private let bubble = CALayer()
     private var spriteCache: [String: CGImage] = [:]
-    private var currentSprite: PixelSprite?
-    private var currentSpeech: String?
-    private var currentPixel: CGFloat = 0
-    private var currentX: CGFloat = -1
+    private var speech: String?
+    var pixel: CGFloat = 2 {
+        didSet { soldier.bounds = CGRect(x: 0, y: 0, width: 16 * pixel, height: 16 * pixel) }
+    }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
         layer = CALayer()
-        spriteLayer.magnificationFilter = .nearest // 픽셀아트는 보간 없이
-        spriteLayer.anchorPoint = .zero
-        bubbleLayer.anchorPoint = .zero
-        layer?.addSublayer(spriteLayer)
-        layer?.addSublayer(bubbleLayer)
+        soldier.magnificationFilter = .nearest // 픽셀아트는 보간 없이
+        soldier.anchorPoint = .zero
+        soldier.bounds = CGRect(x: 0, y: 0, width: 32, height: 32)
+        bubble.anchorPoint = .zero
+        bubble.isHidden = true
+        soldier.addSublayer(bubble)
+        layer?.addSublayer(soldier)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    func update(sprite: PixelSprite, x: CGFloat, speech: String?, pixel: CGFloat) {
-        guard sprite != currentSprite || x != currentX || speech != currentSpeech || pixel != currentPixel else { return }
-        CATransaction.begin()
-        CATransaction.setDisableActions(true) // 암묵적 애니메이션 끄기
+    /// 지금 화면에 보이는 위치 (애니메이션 중이면 진행 중인 값)
+    var currentX: CGFloat { soldier.presentation()?.position.x ?? soldier.position.x }
 
-        let size = CGFloat(sprite.width) * pixel
-        if sprite != currentSprite || pixel != currentPixel {
-            spriteLayer.contents = image(for: sprite)
-            spriteLayer.bounds = CGRect(x: 0, y: 0, width: size, height: size)
-        }
-        spriteLayer.position = CGPoint(x: x, y: 0)
-
-        if let speech {
-            // 오른쪽 공간이 모자라면 왼쪽에 띄우고, 꼬리는 항상 이등병 쪽을 향한다
-            let fontSize = max(11, pixel * 5.5), scale = window?.backingScaleFactor ?? 2
-            if let probe = Self.renderBubble(speech, fontSize: fontSize, maxHeight: bounds.height - 2, scale: scale) {
-                let onRight = x + size + 2 + probe.size.width < bounds.width
-                let bubble = onRight ? probe
-                    : Self.renderBubble(speech, fontSize: fontSize, maxHeight: bounds.height - 2, scale: scale, tailOnRight: true) ?? probe
-                bubbleLayer.contents = bubble.image
-                bubbleLayer.bounds = CGRect(origin: .zero, size: bubble.size)
-                bubbleLayer.position = CGPoint(x: onRight ? x + size + 2 : x - 2 - bubble.size.width,
-                                               y: (bounds.height - bubble.size.height) / 2 + 2)
-                bubbleLayer.isHidden = false
-            }
-        } else {
-            bubbleLayer.isHidden = true
-        }
-
+    func place(at x: CGFloat) {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        soldier.position = CGPoint(x: x, y: 0)
         CATransaction.commit()
-        currentSprite = sprite
-        currentX = x
-        currentSpeech = speech
-        currentPixel = pixel
+    }
+
+    func walk(from x: CGFloat, to target: CGFloat, duration: TimeInterval, frames: [PixelSprite], interval: TimeInterval) {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        soldier.removeAnimation(forKey: "move")
+        soldier.position = CGPoint(x: target, y: 0) // 최종 값
+        let move = CABasicAnimation(keyPath: "position.x")
+        move.fromValue = x
+        move.toValue = target
+        move.duration = duration
+        move.timingFunction = CAMediaTimingFunction(name: .linear)
+        soldier.add(move, forKey: "move")
+        setFrames(frames, interval: interval)
+        CATransaction.commit()
+    }
+
+    func stand(at x: CGFloat, frames: [PixelSprite], interval: TimeInterval) {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        soldier.removeAnimation(forKey: "move")
+        soldier.position = CGPoint(x: x, y: 0)
+        setFrames(frames, interval: interval)
+        CATransaction.commit()
+    }
+
+    private func setFrames(_ frames: [PixelSprite], interval: TimeInterval) {
+        let images = frames.compactMap(image(for:))
+        soldier.removeAnimation(forKey: "frames")
+        soldier.contents = images.first
+        guard images.count > 1 else { return }
+        let animation = CAKeyframeAnimation(keyPath: "contents")
+        animation.values = images
+        animation.calculationMode = .discrete
+        animation.duration = interval * Double(images.count)
+        animation.repeatCount = .infinity
+        soldier.add(animation, forKey: "frames")
+    }
+
+    /// 말풍선. 화면 가운데보다 오른쪽에 있으면 왼쪽에 띄운다 (말풍선이 떠 있는 동안은 방향 고정).
+    func setSpeech(_ text: String?) {
+        guard text != speech else { return }
+        speech = text
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        guard let text else { bubble.isHidden = true; return }
+
+        let scale = window?.backingScaleFactor ?? 2
+        let onLeft = currentX > bounds.midX
+        guard let rendered = Self.renderBubble(text, fontSize: max(11, pixel * 5.5), maxHeight: bounds.height - 2,
+                                               scale: scale, tailOnRight: onLeft) else { return }
+        let size = soldier.bounds.width
+        bubble.contents = rendered.image
+        bubble.contentsScale = scale
+        bubble.bounds = CGRect(origin: .zero, size: rendered.size)
+        bubble.position = CGPoint(x: onLeft ? -2 - rendered.size.width : size + 2,
+                                  y: (soldier.bounds.height - rendered.size.height) / 2 + 2)
+        bubble.isHidden = false
     }
 
     private func image(for sprite: PixelSprite) -> CGImage? {
