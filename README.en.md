@@ -29,6 +29,17 @@ The private patrols just under your menu bar with a flashlight. While standing b
 at shift change he salutes with a speech bubble. Clicks pass straight through, he fades when your pointer comes close,
 and he stays out of full-screen apps (presentations, screen sharing, video). Size 2× / 3×, or turn him off.
 
+### 🗣️ The private's lines
+
+| When | He says |
+|------|---------|
+| On watch | "Won't doze off! …probably." · "Sleep tight. I've got this!" |
+| Standing by | "Polishing my rifle… standing by." |
+| Mac heating up | "Heat advisory! Hydrating 🥵" → "Combat rest! Cooling down 🧊" |
+| Low battery | "Reporting to the duty officer 🔋 Battery at 15%… out of strength, standing down." |
+| Sleep block lost | "Not AWOL! Back on post! 🫡" |
+| You come back | "Handover report! 📋" |
+
 ## Why
 
 To leave an agent running overnight I used to do this:
