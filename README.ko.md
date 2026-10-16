@@ -130,7 +130,7 @@ BULCHIMBEON_DEBUG=1 dist/Bulchimbeon.app/Contents/MacOS/Bulchimbeon
 
 ```bash
 git tag vX.Y.Z && git push origin vX.Y.Z   # → Release 워크플로가 빌드·증명·업로드
-./scripts/bump-cask.sh X.Y.Z               # → 체크섬·출처 증명 검증 후 homebrew-tap 갱신
+./scripts/bump-cask.sh X.Y.Z               # → 체크섬·출처 증명 검증 후 tap 의 cask·리눅스 formula 갱신
 ```
 
 ## 동작 원리
@@ -203,7 +203,17 @@ PR 마다 CI 에서 통과해야 합니다. Ubuntu 24.04 (systemd 255)에서 확
 
 ### 설치
 
-[Releases](https://github.com/s3onghyun/bulchimbeon/releases)에서 amd64·arm64 용 tarball 이나 `.deb` 를 받습니다.
+[리눅스용 Homebrew](https://docs.brew.sh/Homebrew-on-Linux)로 (root 불필요, `brew upgrade` 로 새 버전):
+
+```bash
+brew install s3onghyun/tap/bulchimbeon-linux
+brew services start bulchimbeon-linux    # systemd 사용자 유닛, 로그인하면 시작
+```
+
+설치 방법은 하나만 고르세요. Homebrew 로 깔았다면 tarball 을 또 설치하거나 `.deb` 유닛을 켜지
+(`systemctl --user enable bulchimbeon`) 마세요. 데몬이 두 개 돕니다.
+
+또는 [Releases](https://github.com/s3onghyun/bulchimbeon/releases)에서 amd64·arm64 용 tarball 이나 `.deb` 를 받습니다.
 
 ```bash
 # tarball: root 불필요. ~/.local/bin/bulchimbeon 과 systemd 사용자 유닛을 설치하고 시작
@@ -216,7 +226,7 @@ systemctl --user enable --now bulchimbeon
 ```
 
 검증(선택): `sha256sum -c SHA256SUMS --ignore-missing`, `gh attestation verify <파일> --repo s3onghyun/bulchimbeon`.
-제거: `./install-linux.sh --uninstall`, 또는 `systemctl --user disable --now bulchimbeon` 후 `sudo apt remove bulchimbeon`.
+제거: `brew services stop bulchimbeon-linux && brew uninstall bulchimbeon-linux`, `./install-linux.sh --uninstall`, 또는 `systemctl --user disable --now bulchimbeon` 후 `sudo apt remove bulchimbeon`.
 설정(`~/.config/bulchimbeon`)과 근무일지(`~/.local/state/bulchimbeon`)는 남깁니다.
 로그아웃한 동안에도 돌리려면 한 번 `loginctl enable-linger`.
 

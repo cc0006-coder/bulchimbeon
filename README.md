@@ -173,7 +173,17 @@ Tested on Ubuntu 24.04 (systemd 255). It needs systemd and logind.
 
 ### Install
 
-Download from [Releases](https://github.com/s3onghyun/bulchimbeon/releases): a tarball or a `.deb` for amd64 or arm64.
+With [Homebrew on Linux](https://docs.brew.sh/Homebrew-on-Linux) (no root; `brew upgrade` brings new versions):
+
+```bash
+brew install s3onghyun/tap/bulchimbeon-linux
+brew services start bulchimbeon-linux    # systemd user unit, started at login
+```
+
+Pick one install method. If you use Homebrew, do not also install the tarball or enable the `.deb` unit
+(`systemctl --user enable bulchimbeon`), or two daemons will run.
+
+Or download from [Releases](https://github.com/s3onghyun/bulchimbeon/releases): a tarball or a `.deb` for amd64 or arm64.
 
 ```bash
 # Tarball: no root needed. Installs ~/.local/bin/bulchimbeon and a systemd user unit, then starts it
@@ -188,8 +198,9 @@ systemctl --user enable --now bulchimbeon
 Verify the download (optional): `sha256sum -c SHA256SUMS --ignore-missing`, and
 `gh attestation verify <file> --repo s3onghyun/bulchimbeon`.
 
-Uninstall with `./install-linux.sh --uninstall`, or `systemctl --user disable --now bulchimbeon`
-followed by `sudo apt remove bulchimbeon`. Your settings (`~/.config/bulchimbeon`) and duty log
+Uninstall with `brew services stop bulchimbeon-linux && brew uninstall bulchimbeon-linux`,
+`./install-linux.sh --uninstall`, or `systemctl --user disable --now bulchimbeon` followed by
+`sudo apt remove bulchimbeon`. Your settings (`~/.config/bulchimbeon`) and duty log
 (`~/.local/state/bulchimbeon`) are kept.
 
 To keep the service running while you are logged out, run `loginctl enable-linger` once.
@@ -289,7 +300,7 @@ Want to help? Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 git tag vX.Y.Z && git push origin vX.Y.Z   # → the Release workflow builds, attests and uploads
-./scripts/bump-cask.sh X.Y.Z               # → verifies checksum and provenance, then updates homebrew-tap
+./scripts/bump-cask.sh X.Y.Z               # → verifies checksums and provenance, then updates the tap's cask and Linux formula
 ```
 
 Sprites are ASCII grids in `Sources/BulchimbeonCore/Sprites.swift`: one character per pixel, drawn as vector
