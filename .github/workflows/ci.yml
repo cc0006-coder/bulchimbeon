@@ -24,3 +24,33 @@ jobs:
         run: ./scripts/build-app.sh
       - name: Verify signature
         run: codesign --verify --strict --verbose=2 dist/Bulchimbeon.app
+
+  # Linux daemon (Go). A separate job, so the macOS `test` check that branch protection
+  # requires keeps its name; the owner may add this one to the required checks.
+  go:
+    name: go (linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Format
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: Vet (linux, windows, darwin)
+        run: |
+          go vet ./...
+          GOOS=windows go vet ./...
+          GOOS=darwin go vet ./...
+      - name: Test (includes the shared testdata/engine fixtures)
+        run: go test ./...
+      - name: Package (dry run)
+        run: |
+          ./scripts/package-linux.sh 0.0.0~ci amd64
+          ./scripts/package-linux.sh 0.0.0~ci arm64
+          dpkg-deb --info dist/linux/bulchimbeon_0.0.0~ci_amd64.deb
+          tar -tzf dist/linux/bulchimbeon_0.0.0~ci_linux_arm64.tar.gz

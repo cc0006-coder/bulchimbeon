@@ -1,0 +1,79 @@
+{
+  "cpuThreshold": 2.0,
+  "busyGraceSeconds": 300,
+  "evaluate": [
+    {"name": "working vs idle sessions (measured on macOS): caffeinate child, busy build grandchild, idle MCP server",
+     "processes": [
+       {"pid": 11482, "ppid": 7109, "exe": "/Users/me/.local/share/claude/versions/2.1.296", "args": ["claude", "--dangerously-skip-permissions"]},
+       {"pid": 19418, "ppid": 11482, "exe": "/usr/bin/caffeinate", "args": ["caffeinate"]},
+       {"pid": 6885, "ppid": 40271, "exe": "/Users/me/.local/share/claude/versions/2.1.296", "args": ["claude"]},
+       {"pid": 6900, "ppid": 6885, "exe": "/opt/homebrew/bin/node", "args": ["node", "/x/mcp-server.js"]},
+       {"pid": 4813, "ppid": 4518, "exe": "/Users/me/.local/share/claude/versions/2.1.296", "args": ["claude", "-c"]},
+       {"pid": 4900, "ppid": 4813, "exe": "/bin/zsh", "args": ["/bin/zsh"]},
+       {"pid": 4901, "ppid": 4900, "exe": "/usr/bin/swift-build", "args": ["swift-build"]}
+     ],
+     "cpu": {"11482": 10.6, "6885": 0.0, "6900": 0.3, "4813": 0.1, "4901": 85},
+     "expect": {"claude-code": {"present": 3, "busy": 2}}},
+    {"name": "first scan has no CPU data: only the caffeinate signal counts",
+     "processes": [
+       {"pid": 1, "ppid": 0, "exe": "/Users/me/.local/share/claude/versions/2.1.296", "args": ["claude"]},
+       {"pid": 2, "ppid": 0, "exe": "/Users/me/.local/share/claude/versions/2.1.296", "args": ["claude"]},
+       {"pid": 3, "ppid": 2, "exe": "/usr/bin/caffeinate", "args": ["caffeinate"]}
+     ],
+     "cpu": {},
+     "expect": {"claude-code": {"present": 2, "busy": 1}}},
+    {"name": "cyclic parent links do not hang",
+     "processes": [
+       {"pid": 10, "ppid": 11, "exe": "/Users/me/.local/share/claude/versions/2.1.296", "args": ["claude"]},
+       {"pid": 11, "ppid": 10, "exe": "/bin/zsh", "args": ["zsh"]}
+     ],
+     "cpu": {"11": 5},
+     "expect": {"claude-code": {"present": 1, "busy": 1}}},
+    {"name": "Linux crew sessions (measured on the mini PC): idle ones at 0.6-0.9% stay idle, the working one with tool children is busy",
+     "processes": [
+       {"pid": 794081, "ppid": 790001, "exe": "/home/me/.local/share/claude/versions/2.1.301", "args": ["claude", "--dangerously-skip-permissions"]},
+       {"pid": 794500, "ppid": 794081, "exe": "/usr/bin/bash", "args": ["/bin/bash"]},
+       {"pid": 794510, "ppid": 794500, "exe": "/usr/bin/python3.12", "args": ["python3"]},
+       {"pid": 802888, "ppid": 790002, "exe": "/home/me/.local/share/claude/versions/2.1.300", "args": ["claude"]},
+       {"pid": 815414, "ppid": 790003, "exe": "/home/me/.local/share/claude/versions/2.1.300", "args": ["claude"]},
+       {"pid": 1031562, "ppid": 790004, "exe": "/home/me/.local/share/claude/versions/2.1.300", "args": ["claude"]},
+       {"pid": 1126146, "ppid": 790005, "exe": "/home/me/.local/share/claude/versions/2.1.300", "args": ["claude"]}
+     ],
+     "cpu": {"794081": 10.2, "794500": 0.0, "794510": 0.1, "802888": 0.6, "815414": 0.9, "1031562": 0.6, "1126146": 0.9},
+     "expect": {"claude-code": {"present": 5, "busy": 1}}},
+    {"name": "the threshold is inclusive (2.0% across the tree)",
+     "processes": [
+       {"pid": 1, "ppid": 0, "exe": "/home/me/.local/share/claude/versions/2.1.300", "args": ["claude"]},
+       {"pid": 2, "ppid": 1, "exe": "/usr/bin/bash", "args": ["bash"]}
+     ],
+     "cpu": {"1": 1.5, "2": 0.5},
+     "expect": {"claude-code": {"present": 1, "busy": 1}}},
+    {"name": "just below the threshold is idle",
+     "processes": [
+       {"pid": 1, "ppid": 0, "exe": "/home/me/.local/share/claude/versions/2.1.300", "args": ["claude"]}
+     ],
+     "cpu": {"1": 1.9},
+     "expect": {"claude-code": {"present": 1, "busy": 0}}},
+    {"name": "several agents, only descendants count, a busy sibling does not",
+     "processes": [
+       {"pid": 100, "ppid": 1, "exe": "/usr/bin/codex", "args": ["codex"]},
+       {"pid": 101, "ppid": 100, "exe": "/usr/bin/cargo", "args": ["cargo"]},
+       {"pid": 200, "ppid": 1, "exe": "/usr/bin/node", "args": ["node", "/usr/lib/node_modules/@google/gemini-cli/dist/index.js"]},
+       {"pid": 300, "ppid": 1, "exe": "/usr/bin/rustc", "args": ["rustc"]},
+       {"pid": 400, "ppid": 1, "exe": "/usr/bin/zsh", "args": ["-zsh"]}
+     ],
+     "cpu": {"100": 0.2, "101": 50.0, "200": 0.3, "300": 99.0},
+     "expect": {"codex": {"present": 1, "busy": 1}, "gemini-cli": {"present": 1, "busy": 0}}},
+    {"name": "custom agents are evaluated too",
+     "processes": [
+       {"pid": 7, "ppid": 1, "exe": "/usr/local/bin/goose", "args": ["goose"]}
+     ],
+     "custom": ["goose"],
+     "cpu": {"7": 3.0},
+     "expect": {"custom:goose": {"present": 1, "busy": 1}}},
+    {"name": "no agents",
+     "processes": [{"pid": 7, "ppid": 1, "exe": "/usr/bin/vim", "args": ["vim"]}],
+     "cpu": {"7": 30.0},
+     "expect": {}}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "lines": [
+    {"name": "frozen example from CompatibilityTests: newlines fold into spaces",
+     "at": 1000000, "text": "근무 투입 — 테스트\n둘째 줄", "line": "1970-01-12T13:46:40Z  근무 투입 — 테스트 둘째 줄\n"},
+    {"name": "plain entry", "at": 1792140000, "text": "Shift over — Claude Code finished, all clear",
+     "line": "2026-10-16T08:40:00Z  Shift over — Claude Code finished, all clear\n"},
+    {"name": "CR LF becomes two spaces", "at": 0, "text": "a\r\nb", "line": "1970-01-01T00:00:00Z  a  b\n"},
+    {"name": "every Foundation newline character folds", "at": 0, "text": "x y\u0085z\u000bw\u000cv u\rt",
+     "line": "1970-01-01T00:00:00Z  x y z w v u t\n"},
+    {"name": "tabs stay", "at": 0, "text": "tab\tstays", "line": "1970-01-01T00:00:00Z  tab\tstays\n"},
+    {"name": "a forged second entry stays on the first line", "at": 0, "text": "정상\n2026-01-01T00:00:00Z  위조된 항목",
+     "line": "1970-01-01T00:00:00Z  정상 2026-01-01T00:00:00Z  위조된 항목\n"}
+  ]
+}

@@ -5,6 +5,7 @@
 > then salutes *"Shift over!"* and lets it sleep.
 >
 > **No hooks, no daemon, no installed root helper. One app. macOS 13 and later.**
+> On Linux, a small command-line daemon does the same job: see [Linux](#linux).
 
 *Bulchimbeon* (불침번) is the night-watch duty in the Korean army: someone stays up all night so everyone else can sleep.
 A pixel-art private takes that shift for your Mac.
@@ -163,6 +164,97 @@ pmset -g assertions | grep Bulchimbeon   # is it on watch right now?
 The duty logic lives in a pure state machine (`DutyEngine`) with no system calls, tested scenario by scenario with a
 fake clock. Design notes, including signals we tried and rejected: [docs/design.md](docs/design.md).
 
+## Linux
+
+Bulchimbeon also runs on Linux as a small daemon with a command line (v0.1; no tray icon yet).
+It uses the same engine as the macOS app: a Go port that must pass the same golden test cases
+([`testdata/engine`](testdata/engine)) as the Swift core, in CI on every pull request.
+Tested on Ubuntu 24.04 (systemd 255). It needs systemd and logind.
+
+### Install
+
+Download from [Releases](https://github.com/s3onghyun/bulchimbeon/releases): a tarball or a `.deb` for amd64 or arm64.
+
+```bash
+# Tarball: no root needed. Installs ~/.local/bin/bulchimbeon and a systemd user unit, then starts it
+tar -xzf bulchimbeon_<version>_linux_amd64.tar.gz
+cd bulchimbeon_<version>_linux_amd64 && ./install-linux.sh
+
+# or the .deb: installs /usr/bin/bulchimbeon and the user unit; each user then enables it
+sudo apt install ./bulchimbeon_<version>_amd64.deb
+systemctl --user enable --now bulchimbeon
+```
+
+Verify the download (optional): `sha256sum -c SHA256SUMS --ignore-missing`, and
+`gh attestation verify <file> --repo s3onghyun/bulchimbeon`.
+
+Uninstall with `./install-linux.sh --uninstall`, or `systemctl --user disable --now bulchimbeon`
+followed by `sudo apt remove bulchimbeon`. Your settings (`~/.config/bulchimbeon`) and duty log
+(`~/.local/state/bulchimbeon`) are kept.
+
+To keep the service running while you are logged out, run `loginctl enable-linger` once.
+
+### Use
+
+```bash
+bulchimbeon status                       # on duty or not, and why
+bulchimbeon doctor                       # check systemd, logind and polkit on this machine
+bulchimbeon config set agentGraceMinutes 10
+bulchimbeon config set customAgents goose amp
+bulchimbeon config set language ko       # ko | en | system (default: follows LANG)
+journalctl --user -u bulchimbeon -f      # the daemon's log
+```
+
+```text
+$ bulchimbeon status
+🪖 Bulchimbeon — on duty for 0:35 (agent watch)
+Lock:      blocking sleep and idle (systemd-inhibit pid 3916014, 3916076) · confirmed in logind
+Why:       Claude Code pid 1174857 11.7% (process-tree CPU ≥ 2.0%, 60 s average)
+Agents:    Claude Code ×7 open, 1 working
+Handover:  5 min after the last agent goes quiet (agentGraceMinutes)
+Power:     battery: none · heat: normal (coretemp 49 °C, critical 105 °C) · lid: not handled (closing it still suspends)
+```
+
+`bulchimbeon run` is the daemon itself; the user unit runs it. It always does agent watch: the
+same detection rules, a 5-second check, engage when an agent's process tree uses at least 2% CPU
+(60-second average; Linux has no `caffeinate` signal), hand over after the grace time.
+
+### How it works on Linux
+
+| | Linux |
+|---|---|
+| Agents | Your own processes from `/proc`, with the same matching rules and the same privacy limits as on macOS |
+| Sleep lock | Two logind block inhibitors, `sleep` and `idle`, each held by a `systemd-inhibit` child tied to a pipe. If the daemon dies, even with `kill -9`, both are released at once. They show up in `systemd-inhibit --list` as `Bulchimbeon` |
+| Battery stand-down | `/sys/class/power_supply` |
+| Heat | hwmon (`coretemp`, `k10temp`, …) or thermal zones: heat advisory 15 °C below the critical temperature, combat rest 5 °C below |
+| Duty log | `~/.local/state/bulchimbeon/duty-log.txt`, same format as on macOS |
+
+### Limits
+
+- **Closing the lid still suspends.** By default logind ignores inhibitors for the lid switch
+  (`LidSwitchIgnoreInhibited=yes`), and Bulchimbeon never changes logind's settings.
+- **Over SSH or on a headless machine, the sleep block needs a polkit rule.** By default polkit
+  allows a `sleep` block inhibitor only from a local login (someone at the machine's screen). From an
+  SSH session, or as a user service on a machine nobody logs into locally, logind refuses it.
+  Bulchimbeon then blocks only `idle`, and `bulchimbeon status` says plainly that sleep is not blocked.
+  To allow it for one user, save this as `/etc/polkit-1/rules.d/50-bulchimbeon.rules` (owner root, mode `0644`),
+  with your user name; `bulchimbeon doctor` prints it with your name filled in:
+
+  ```js
+  // Bulchimbeon: let YOUR-USER-NAME hold a logind "sleep" block inhibitor from an SSH or
+  // systemd --user session (polkit's default only allows it from a local session).
+  // Grants nothing else. Remove this file to undo.
+  polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.login1.inhibit-block-sleep" && subject.user == "YOUR-USER-NAME") return polkit.Result.YES;
+  });
+  ```
+
+  It grants only `org.freedesktop.login1.inhibit-block-sleep` to that user; delete the file to undo.
+  Bulchimbeon never runs this for you. On a laptop with a normal desktop login you don't need it.
+- Only the "Display may sleep" watch mode exists on Linux (`dutyMode` is ignored), and there is no tray icon:
+  notifications go to the journal.
+- Windows is planned: the platform layer is in [`internal/platform`](internal/platform).
+
 ## Security
 
 The app runs `pmset` with admin rights and reads other processes' metadata, so it has its own threat model:
@@ -175,7 +267,8 @@ The app runs `pmset` with admin rights and reads other processes' metadata, so i
 
 ## Development
 
-Only the Command Line Tools are needed, no Xcode.
+Only the Command Line Tools are needed, no Xcode. The Linux daemon is a Go module (Go 1.27 or later):
+`go test ./...` and `go build ./cmd/bulchimbeon`.
 
 ```bash
 make test       # unit + scenario tests

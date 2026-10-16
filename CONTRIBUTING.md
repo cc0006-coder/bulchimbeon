@@ -44,6 +44,18 @@ BULCHIMBEON_DEBUG=1 dist/Bulchimbeon.app/Contents/MacOS/Bulchimbeon   # print en
 With full Xcode installed, plain `swift test` also works; `make test` adds flags that the Command Line Tools'
 testing framework needs. CI runs `swift test`, builds the app bundle, and verifies its signature on macOS for every PR.
 
+The Linux daemon is a Go module at the repository root (`cmd/bulchimbeon`, `internal/`). It needs Go 1.27 or later
+and nothing else; it builds and tests on any OS, and its Linux backend tests run on Linux:
+
+```bash
+go test ./...                     # engine, shared fixtures, Linux backend, daemon, CLI
+go build ./cmd/bulchimbeon        # then ./bulchimbeon status, doctor
+./scripts/install-linux.sh ./bulchimbeon   # install it as your systemd user service (Linux)
+BULCHIMBEON_TEST_LOGIND=1 go test ./internal/platform/linux/   # also take a real logind lock
+```
+
+CI runs these in the `go (linux)` job.
+
 ### Code layout
 
 | Where | What | Tests |
@@ -52,9 +64,14 @@ testing framework needs. CI runs `swift test`, builds the app bundle, and verifi
 | `Sources/Bulchimbeon/` | System calls (IOKit, libproc, `pmset`) and the UI | Checked by running the app |
 | `Sources/IconGen/` | Sprites → app icon and preview PNGs | — |
 | `Tests/BulchimbeonCoreTests/` | Swift Testing suites for the Core target, including scenario tests with a fake clock | |
+| `testdata/engine/` | Golden fixtures that the Swift tests and the Go tests both run ([format](testdata/engine/README.md)) | Required |
+| `internal/engine/` | The Go port of the Core engine for the Linux daemon | **Required**: must pass `testdata/engine` |
+| `internal/platform/`, `internal/daemon/`, `cmd/bulchimbeon/` | Linux backend (`/proc`, logind, sysfs), the daemon loop and the `bulchimbeon` command; a Windows stub | Unit tests with recorded fixtures |
 | `docs/` | Design notes (`design.md`), the [compatibility promise](docs/compatibility.md), media | |
 
 Put decisions in Core with tests, and keep the app target a thin shell that calls the system.
+The Swift Core is the behavior reference: change it first, update `testdata/engine` until `swift test` passes, then
+make `internal/engine` pass the same fixtures.
 
 ### Ground rules
 
@@ -87,10 +104,14 @@ These match the checklist in the PR template.
    - Don't match broad substrings. That causes false positives such as hook scripts.
 3. Add a test to `Tests/BulchimbeonCoreTests/CoreTests.swift` using **the exact process shape you observed**, plus
    one false-positive case.
-4. Check with `--diagnose` that it's really detected, and paste that output into the PR.
+4. Add the same kind to `BuiltIn` in `internal/engine/catalog.go` and to `builtIn` and `match` in
+   `testdata/engine/catalog.json`, so the Linux daemon detects it too (`go test ./...`).
+5. Check with `--diagnose` (macOS) or `bulchimbeon status` (Linux, which lists the detected agents) that it's really
+   detected, and paste that output into the PR.
 
 Can't wait for a release? Users can add an agent locally with
-`defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>`.
+`defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>` (macOS) or
+`bulchimbeon config set customAgents <name>` (Linux).
 
 ### Sprites
 
@@ -184,6 +205,18 @@ BULCHIMBEON_DEBUG=1 dist/Bulchimbeon.app/Contents/MacOS/Bulchimbeon   # 엔진�
 Xcode 가 설치돼 있으면 `swift test` 만으로도 됩니다. `make test` 는 Command Line Tools 의 테스트 프레임워크에 필요한
 플래그를 붙여줍니다. CI 는 PR 마다 macOS 에서 `swift test`, 앱 번들 빌드, 서명 검증을 돌립니다.
 
+리눅스 데몬은 저장소 루트의 Go 모듈입니다 (`cmd/bulchimbeon`, `internal/`). Go 1.27 이상만 있으면 되고, 다른 의존성은
+없습니다. 어느 OS 에서든 빌드·테스트되며 리눅스 백엔드 테스트는 리눅스에서 돕니다:
+
+```bash
+go test ./...                     # 엔진, 공유 픽스처, 리눅스 백엔드, 데몬, CLI
+go build ./cmd/bulchimbeon        # 그다음 ./bulchimbeon status, doctor
+./scripts/install-linux.sh ./bulchimbeon   # systemd 사용자 서비스로 설치 (리눅스)
+BULCHIMBEON_TEST_LOGIND=1 go test ./internal/platform/linux/   # 실제 logind 잠금까지 시험
+```
+
+CI 는 이것을 `go (linux)` 잡에서 돌립니다.
+
 ### 구조
 
 | 위치 | 내용 | 테스트 |
@@ -192,9 +225,14 @@ Xcode 가 설치돼 있으면 `swift test` 만으로도 됩니다. `make test` �
 | `Sources/Bulchimbeon/` | 시스템 호출(IOKit·libproc·`pmset`)과 UI | 실제 실행으로 확인 |
 | `Sources/IconGen/` | 스프라이트 → 앱 아이콘·미리보기 PNG | — |
 | `Tests/BulchimbeonCoreTests/` | Core 타깃의 Swift Testing 테스트 (가짜 시계로 도는 시나리오 테스트 포함) | |
+| `testdata/engine/` | Swift 테스트와 Go 테스트가 함께 돌리는 골든 픽스처 ([형식](testdata/engine/README.md)) | 필수 |
+| `internal/engine/` | 리눅스 데몬용 Go 엔진 (Core 엔진을 옮긴 것) | **필수**: `testdata/engine` 통과 |
+| `internal/platform/`, `internal/daemon/`, `cmd/bulchimbeon/` | 리눅스 백엔드(`/proc`·logind·sysfs), 데몬 루프, `bulchimbeon` 명령, Windows 자리 | 기록된 픽스처로 단위 테스트 |
 | `docs/` | 설계서(`design.md`), [호환성 약속](docs/compatibility.md), 미디어 | |
 
 판단 로직은 Core 에 두고 테스트를 붙여주세요. 앱 타깃은 시스템을 호출하는 얇은 껍데기로 유지합니다.
+동작의 기준은 Swift Core 입니다: Core 를 먼저 고치고, `swift test` 가 통과하도록 `testdata/engine` 을 갱신한 뒤,
+`internal/engine` 이 같은 픽스처를 통과하게 맞춥니다.
 
 ### 지켜주세요
 
@@ -226,10 +264,13 @@ PR 템플릿의 체크리스트와 같습니다.
    - `packageMarkers`: node/bun/deno 로 실행될 때 스크립트 경로 조각
    - 부분 문자열로 넓게 잡지 마세요. hook 스크립트 같은 오탐이 생깁니다.
 3. `Tests/BulchimbeonCoreTests/CoreTests.swift` 에 **실측한 프로세스 모습 그대로** 테스트를 추가합니다. 오탐 케이스도 하나 넣어주세요.
-4. `--diagnose` 로 실제로 잡히는지 확인하고, 그 출력을 PR 에 붙여주세요.
+4. 같은 종류를 `internal/engine/catalog.go` 의 `BuiltIn` 과 `testdata/engine/catalog.json` 의 `builtIn`·`match` 에도 추가해
+   리눅스 데몬도 감지하게 합니다 (`go test ./...`).
+5. `--diagnose`(macOS) 또는 `bulchimbeon status`(리눅스, 감지된 에이전트를 보여줌)로 실제로 잡히는지 확인하고, 그 출력을 PR 에 붙여주세요.
 
 릴리스를 기다리기 어렵다면 사용자가 직접 추가할 수도 있습니다:
-`defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>`
+`defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>` (macOS),
+`bulchimbeon config set customAgents <name>` (리눅스)
 
 ### 스프라이트
 

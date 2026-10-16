@@ -38,3 +38,50 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.sha256 \
             --title "불침번 $GITHUB_REF_NAME" --generate-notes --verify-tag
+
+  # Linux daemon: tar.gz and .deb for amd64 and arm64, attached to the release above.
+  # Plain `go build` and `dpkg-deb` (scripts/package-linux.sh), no third-party packaging action.
+  linux:
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write      # Release 에 파일 추가
+      id-token: write      # attestation 서명 (Sigstore OIDC)
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Test
+        run: |
+          go vet ./...
+          go test ./...
+      - name: Build
+        run: |
+          for arch in amd64 arm64; do
+            ./scripts/package-linux.sh "${GITHUB_REF_NAME#v}" "$arch"
+          done
+          cd dist/linux && sha256sum ./*.tar.gz ./*.deb > SHA256SUMS && cat SHA256SUMS
+      - name: Verify
+        run: |
+          cd dist/linux
+          sha256sum -c SHA256SUMS
+          for deb in ./*.deb; do dpkg-deb --info "$deb"; done
+          tar -xzOf "bulchimbeon_${GITHUB_REF_NAME#v}_linux_amd64.tar.gz" "bulchimbeon_${GITHUB_REF_NAME#v}_linux_amd64/bulchimbeon" > bulchimbeon
+          chmod +x bulchimbeon && ./bulchimbeon version && rm bulchimbeon
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/linux/*.tar.gz
+            dist/linux/*.deb
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" dist/linux/*.tar.gz dist/linux/*.deb dist/linux/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY"

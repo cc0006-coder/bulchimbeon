@@ -3,16 +3,17 @@
 ## Scope
 
 `bulchimbeon` is a macOS menu-bar app (Swift Package Manager, no Xcode project) that keeps
-the Mac awake while AI coding agents are running. Read `CONTRIBUTING.md` before changing
-anything; it is the source of truth for code layout, ground rules, adding an agent,
-sprites and translations. `SECURITY.md` holds the threat model.
+the Mac awake while AI coding agents are running, plus a Linux daemon and CLI written in Go
+(a Go module at the repository root; Windows is a stub for later). Read `CONTRIBUTING.md`
+before changing anything; it is the source of truth for code layout, ground rules, adding an
+agent, sprites and translations. `SECURITY.md` holds the threat model.
 
 ## Setup and verification
 
 Requires macOS 13 or later (`Package.swift` targets `.macOS(.v13)`) and the Xcode Command
 Line Tools with a Swift 6 or newer toolchain, because the tests use Swift Testing. Full
 Xcode is optional. There are no third-party dependencies to install. The app links IOKit
-and ServiceManagement, so it does not build on Linux.
+and ServiceManagement, so the Swift package does not build on Linux; the Go module below does.
 
 ```sh
 make build   # swift build
@@ -26,11 +27,30 @@ and verifies its signature on macOS. Run `make test` and `make app` before openi
 request. Do not claim a command passed if it was not run; if you are not on macOS or a
 prerequisite is missing, say so and include any failure output.
 
+## Go module (Linux daemon)
+
+Go 1.27 or newer, standard library only (no `require` in `go.mod`).
+
+```sh
+go vet ./... && go test ./...       # what the CI job `go (linux)` runs, plus gofmt
+go build ./cmd/bulchimbeon          # run | status | doctor | config
+./scripts/package-linux.sh <version> <amd64|arm64>   # tar.gz and .deb into dist/linux
+```
+
+- Engine truth lives in the Swift core (`Sources/BulchimbeonCore`). `internal/engine` is its Go
+  port, and both must pass the shared fixtures in `testdata/engine/` (format in its README).
+- To change engine behavior: change the Swift core, update the fixture until `swift test` passes,
+  then make `go test ./...` pass. Never edit a fixture just to make the Go port pass.
+- `internal/platform/linux` holds every Linux system call (`/proc`, `systemd-inhibit`, `busctl`,
+  sysfs); keep `internal/daemon` and `cmd/bulchimbeon` free of duty logic. Run external tools by
+  absolute path with a minimal environment, never through a shell, and never print process arguments.
+- The polkit rule is only ever printed (`bulchimbeon doctor`, README); never run it.
+
 ## Project conventions
 
 - Put logic, especially agent detection and duty decisions, in `Sources/BulchimbeonCore/`
-  with tests in `Tests/BulchimbeonCoreTests/`. Keep `Sources/Bulchimbeon/` a thin shell
-  that calls the system.
+  with tests in `Tests/BulchimbeonCoreTests/`, mirrored in `internal/engine` through the
+  fixtures. Keep `Sources/Bulchimbeon/` a thin shell that calls the system.
 - No network access of any kind, including telemetry and update checks. No third-party
   dependencies.
 - Write every user-facing string in both Korean and English: `L10n.t("한국어", "English")`.
@@ -42,7 +62,8 @@ prerequisite is missing, say so and include any failure output.
 ## Security-sensitive paths
 
 Treat these as security-sensitive and do not change them incidentally: `.github/workflows/`,
-`scripts/` (app build, signing and the Homebrew tap bump), `Package.swift`, `Makefile`,
+`scripts/` (app build, signing, the Homebrew tap bump, Linux packaging and install),
+`Package.swift`, `go.mod`, `Makefile`,
 `SECURITY.md`, and anything touching releases or the Homebrew tap. Never add secrets,
 tokens, a new third-party Action, or a workflow trigger such as `pull_request_target`.
 Never put outside strings into the admin (`pmset`) command, and never store or print other
