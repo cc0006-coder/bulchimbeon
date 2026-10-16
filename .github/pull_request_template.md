@@ -12,3 +12,4 @@ See [CONTRIBUTING.md](https://github.com/s3onghyun/bulchimbeon/blob/main/CONTRIB
 - [ ] `SECURITY.md` updated if security behavior changed / 보안 동작이 바뀌면 `SECURITY.md` 갱신
 - [ ] User-facing text in both Korean and English (`L10n.t`) / 사용자 문구는 한국어·영어 모두
 - [ ] Ran `make icons` if sprites changed / 스프라이트를 바꿨다면 `make icons` 결과 포함
+- [ ] Material AI assistance, if any, is disclosed here, and I reviewed, understand and tested every change / AI 의 실질적 도움을 받았다면 여기에 밝혔고, 모든 변경을 직접 검토·이해·테스트했습니다
