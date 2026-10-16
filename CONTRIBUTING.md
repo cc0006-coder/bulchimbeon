@@ -112,6 +112,16 @@ with your change. A character that isn't in the palette fails the tests.
 - The app UI itself is Korean and English only (other system languages fall back to English). Adding a UI language is
   a bigger change, so please open an issue first.
 
+### AI-assisted contributions
+
+AI tools may be used as an aid. Please keep each pull request focused and review, understand, test, and maintain
+every change you submit. If AI materially helped write code, tests, or documentation, disclose that in the
+pull-request template.
+
+Do not submit bulk-generated or unreviewed changes, copied material with an unknown license, or a change whose behavior
+you cannot explain. By submitting a contribution, you confirm that you have the right to contribute it under this
+repository's MIT license. Maintainers may ask for a smaller PR, reproduction, tests, or provenance.
+
 ### Releases (maintainer only)
 
 ```bash
@@ -227,6 +237,15 @@ PR 템플릿의 체크리스트와 같습니다.
 - 일본어·중국어 README 에 빠진 섹션이 있으면 `README.md` 에서 번역해 넣어주세요.
 - 각 README 맨 위의 언어 링크와 이미지 경로(`docs/media/demo.gif`, `docs/sprites-preview.png`)는 그대로 둬주세요.
 - 앱 UI 는 한국어·영어만 지원합니다 (다른 시스템 언어는 영어로 표시). UI 언어 추가는 큰 변경이라 이슈로 먼저 의논해주세요.
+
+### AI 도움을 받은 기여
+
+AI 도구를 보조로 써도 됩니다. PR 하나는 한 가지 문제에 집중하고, 제출하는 모든 변경을 직접 검토·이해·테스트하고
+이후에도 책임져 주세요. AI 가 코드·테스트·문서 작성에 실질적으로 도움을 줬다면 PR 템플릿에 밝혀주세요.
+
+대량 생성했거나 검토하지 않은 변경, 라이선스를 알 수 없는 복사물, 동작을 설명할 수 없는 변경은 보내지 마세요.
+기여를 제출하면 그 내용을 이 저장소의 MIT 라이선스로 기여할 권리가 있다고 확인하는 것입니다. 메인테이너는 더 작은 PR,
+재현 방법, 테스트, 출처를 요청할 수 있습니다.
 
 ### 릴리스 (메인테이너 전용)
 

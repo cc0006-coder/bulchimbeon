@@ -1,0 +1,9 @@
+# Ownership routes review requests; it does not itself block a merge.
+* @s3onghyun
+
+# Security-sensitive paths
+/.github/ @s3onghyun
+/scripts/ @s3onghyun
+/Package.swift @s3onghyun
+/Makefile @s3onghyun
+/SECURITY.md @s3onghyun
