@@ -25,6 +25,21 @@
 | 알림 (공증 전 대체 경로) | 알림 문구로 AppleScript 인젝션 | `osascript` 에 문구를 스크립트 문자열로 넣지 않고 argv 로 전달 (따옴표·역슬래시가 문자 그대로 표시되는 것 실측), 길이 제한 |
 | 배포 | 변조된 zip | CI 에서만 릴리스 빌드, SHA-256 체크섬 + Sigstore 빌드 출처 증명 (`gh attestation verify`) |
 
+## 리눅스 데몬 (`bulchimbeon`)
+
+리눅스 데몬은 root 권한을 쓰지 않는 사용자 서비스다. 위 원칙을 리눅스에 그대로 옮겼다.
+
+| 자산 / 행위 | 위협 | 대응 |
+|-------------|------|------|
+| 다른 프로세스 정보 (`/proc`) | 명령줄·환경변수 속 API 키 노출, 다른 사용자 프로세스 열람 | `/proc/<pid>` 소유자가 **현재 사용자(UID)** 인 프로세스만. 일반 프로세스는 실행 파일 경로 + `argv[0]` 만, node·bun·deno 는 앞 8개, 에이전트 후보만 앞 64개. `environ` 은 읽지 않고 `cmdline` 버퍼는 파싱 후 0 으로 지움. 상태 파일·근무일지·`status` 에 인자 없음. `diagnose` 는 에이전트의 실행 파일·작업 폴더만 보여줌 |
+| 외부 명령 (`systemd-inhibit`, `busctl`, `systemctl`, `loginctl`) | `PATH` 하이재킹, 셸 인젝션 | `/usr/bin` 등 고정 경로에서만 찾고, 셸 없이 인자 배열로 실행, 환경은 `PATH`=시스템 경로·`LANG=C` 만 (`systemctl --user` 조회에만 `XDG_RUNTIME_DIR` 추가). `--who`·`--why` 는 앱 상수 |
+| 잠자기 잠금 (logind inhibitor) | 데몬이 죽은 뒤 잠금이 남아 영원히 잠들지 못함 | 잠금을 쥔 `systemd-inhibit` 자식의 stdin 을 데몬만 가진 파이프에 묶음: 데몬이 `kill -9` 로 죽어도 0.3초 안에 해제 (실측). 서비스는 `KillMode=control-group`. 매 점검마다 logind 목록에서 실존 확인, 사라지면 재획득·기록 |
+| polkit 규칙 (SSH·헤드리스용, 선택) | 권한 상승, 넓은 권한 부여 | 불침번은 root 로 아무것도 실행하지 않는다. 규칙은 `doctor`·README 에 **출력만** 하며, 한 사용자에게 `org.freedesktop.login1.inhibit-block-sleep` 하나만 허용. 사용자 이름은 `^[a-z_][a-z0-9_-]{0,31}$` 일 때만 끼워 넣고, 아니면 자리표시자 |
+| 설정·상태 파일 | 심볼릭 링크로 다른 파일 덮어쓰기, 반쯤 쓴 파일 | 파일 0600·디렉토리 0700, 임시 파일에 쓴 뒤 `rename`. 근무일지는 macOS 와 같이 `O_NOFOLLOW`·줄바꿈 제거·1MB 회전. 허용 값 밖의 설정은 기본값으로 |
+| 배포 (tar.gz, .deb) | 변조된 파일, 공급망 | CI 에서만 빌드 (`go build -trimpath`, `dpkg-deb`, 서드파티 패키징 도구 없음, 재현 가능한 빌드), `SHA256SUMS` + 빌드 출처 증명, Action 은 GitHub 소유·커밋 SHA 고정. 설치 스크립트는 네트워크·root 없이 `~/.local/bin`·`~/.config/systemd/user` 에만 씀 |
+
+알려진 한계: 덮개를 닫으면 잠든다 (logind 설정은 바꾸지 않음). 같은 사용자가 `claude` 라는 이름의 바쁜 프로세스를 띄우면 근무를 유지시킬 수 있다 (macOS 와 같음).
+
 ## 하지 않는 것
 
 | 항목 | 이유 |

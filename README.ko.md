@@ -4,6 +4,7 @@
 > 내가 자는 동안 AI 에이전트 곁에서 맥을 깨워두고, 일이 끝나면 "근무 교대합니다!" 하고 재워주는 메뉴바 이등병.
 >
 > **hook도, 데몬도, 설치되는 root 도우미도 없이 앱 하나로. macOS 13부터.**
+> 리눅스에서는 명령줄 데몬이 같은 일을 합니다: [Linux](#linux) 참고.
 
 > 🌐 [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
@@ -110,7 +111,7 @@ shasum -a 256 -c Bulchimbeon-<버전>.zip.sha256
 
 ## 개발
 
-Xcode 없이 Command Line Tools 만 있으면 된다.
+Xcode 없이 Command Line Tools 만 있으면 된다. 리눅스 데몬은 Go 모듈이다 (Go 1.27 이상): `go test ./...`, `go build ./cmd/bulchimbeon`.
 
 ```bash
 make app        # dist/Bulchimbeon.app 생성 (ad-hoc 서명)
@@ -193,6 +194,71 @@ pmset -g assertions | grep Bulchimbeon   # 근무 중인지 확인
 - [ ] Apple 공증 + Homebrew 공식 cask (Developer ID 필요)
 - [ ] Privileged helper 로 덮개 모드 암호 프롬프트 제거
 - [ ] 해금 스킨: 순라꾼(조선시대 불침번), 선비(현량자고)
+
+## Linux
+
+리눅스에서는 명령줄로 다루는 작은 데몬으로 돕니다 (v0.1, 트레이 아이콘은 아직 없음).
+엔진은 맥 앱과 같습니다. Go 로 옮긴 엔진이 Swift Core 와 같은 골든 테스트([`testdata/engine`](testdata/engine))를
+PR 마다 CI 에서 통과해야 합니다. Ubuntu 24.04 (systemd 255)에서 확인했고, systemd·logind 가 필요합니다.
+
+### 설치
+
+[Releases](https://github.com/s3onghyun/bulchimbeon/releases)에서 amd64·arm64 용 tarball 이나 `.deb` 를 받습니다.
+
+```bash
+# tarball: root 불필요. ~/.local/bin/bulchimbeon 과 systemd 사용자 유닛을 설치하고 시작
+tar -xzf bulchimbeon_<버전>_linux_amd64.tar.gz
+cd bulchimbeon_<버전>_linux_amd64 && ./install-linux.sh
+
+# 또는 .deb: /usr/bin/bulchimbeon 과 사용자 유닛 설치. 쓰려는 사용자마다 켭니다
+sudo apt install ./bulchimbeon_<버전>_amd64.deb
+systemctl --user enable --now bulchimbeon
+```
+
+검증(선택): `sha256sum -c SHA256SUMS --ignore-missing`, `gh attestation verify <파일> --repo s3onghyun/bulchimbeon`.
+제거: `./install-linux.sh --uninstall`, 또는 `systemctl --user disable --now bulchimbeon` 후 `sudo apt remove bulchimbeon`.
+설정(`~/.config/bulchimbeon`)과 근무일지(`~/.local/state/bulchimbeon`)는 남깁니다.
+로그아웃한 동안에도 돌리려면 한 번 `loginctl enable-linger`.
+
+### 사용
+
+```bash
+bulchimbeon status                       # 지금 근무 중인지, 왜 그런지
+bulchimbeon diagnose                     # 어떤 에이전트 프로세스가 왜 감지되는지
+bulchimbeon doctor                       # systemd·logind·polkit 점검
+bulchimbeon config set agentGraceMinutes 10
+bulchimbeon config set customAgents goose amp
+bulchimbeon config set language ko       # ko | en | system (기본: LANG 따름)
+journalctl --user -u bulchimbeon -f      # 데몬 로그
+```
+
+`bulchimbeon run` 이 데몬이고 사용자 유닛이 이것을 실행합니다. 항상 에이전트 근무입니다: 같은 감지 규칙,
+5초 점검, 에이전트 프로세스 트리가 CPU 2% 이상(60초 평균, 리눅스에는 `caffeinate` 신호가 없음)이면 투입,
+유예 시간 뒤 교대.
+
+### 리눅스에서의 동작
+
+| | 리눅스 |
+|---|---|
+| 에이전트 | `/proc` 의 내 프로세스만. 판별 규칙·개인정보 제한은 맥과 같음 |
+| 잠자기 방지 | logind block inhibitor 두 개(`sleep`, `idle`). 각각 파이프에 묶인 `systemd-inhibit` 자식이 쥐고 있어, 데몬이 죽으면(`kill -9` 포함) 즉시 풀림. `systemd-inhibit --list` 에 `Bulchimbeon` 으로 보임 |
+| 배터리 철수 | `/sys/class/power_supply` |
+| 폭염 | hwmon(`coretemp`, `k10temp` 등) 또는 thermal zone: 위험 온도 15 °C 아래면 주의보, 5 °C 아래면 전투휴식 |
+| 근무일지 | `~/.local/state/bulchimbeon/duty-log.txt` (맥과 같은 형식) |
+
+### 한계
+
+- **덮개를 닫으면 여전히 잠듭니다.** logind 는 기본값(`LidSwitchIgnoreInhibited=yes`)으로 덮개에는 inhibitor 를 무시하고,
+  불침번은 logind 설정을 바꾸지 않습니다.
+- **SSH·헤드리스 기기에서 잠자기 차단에는 polkit 규칙이 필요합니다.** polkit 은 기본적으로 로컬 로그인(화면 앞)에서만
+  `sleep` 차단을 허용합니다. SSH 세션이나, 아무도 로컬로 로그인하지 않는 기기의 사용자 서비스에서는 거부됩니다.
+  그러면 불침번은 `idle` 만 막고, `bulchimbeon status` 가 잠자기는 막지 못한다고 분명히 알려줍니다.
+  한 사용자에게만 허용하려면 위 [English](README.md#limits) 섹션의 규칙을 사용자 이름을 넣어
+  `/etc/polkit-1/rules.d/50-bulchimbeon.rules` (root 소유, `0644`)로 저장하세요. `bulchimbeon doctor` 가 이름을 채워 출력합니다.
+  `org.freedesktop.login1.inhibit-block-sleep` 하나만 허용하며, 파일을 지우면 원래대로 돌아갑니다. 불침번이 대신 실행하지 않습니다.
+  데스크톱으로 로그인하는 노트북에서는 필요 없습니다.
+- 리눅스에는 "화면은 꺼져도 깨어 있음" 근무 형태만 있고(`dutyMode` 무시), 트레이 아이콘이 없어 알림은 저널로 갑니다.
+- Windows 는 계획 중입니다: 플랫폼 계층은 [`internal/platform`](internal/platform).
 
 ## 보안
 

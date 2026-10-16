@@ -362,3 +362,19 @@ func TestSystemdInhibitorAgainstLogind(t *testing.T) {
 		}
 	}
 }
+
+// The README shows the same rule that doctor prints, so the documented text cannot drift.
+func TestReadmeShowsThePolkitRule(t *testing.T) {
+	readme, err := os.ReadFile("../../../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(strings.TrimSuffix(PolkitRule("YOUR-USER-NAME"), "\n"), "\n") {
+		if !strings.Contains(string(readme), "\n  "+line+"\n") {
+			t.Errorf("README.md lacks the rule line %q", line)
+		}
+	}
+	if !strings.Contains(string(readme), PolkitRulePath) {
+		t.Errorf("README.md does not name %s", PolkitRulePath)
+	}
+}
