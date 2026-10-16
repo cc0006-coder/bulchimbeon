@@ -1,65 +1,65 @@
-name: "🚨 근무 태도 불량 신고 / Bug report"
-description: "이등병이 졸았거나, 근무를 안 섰거나, 이상하게 굴었나요? / The soldier misbehaved?"
-title: "[근무 태도 불량] "
+name: "🚨 Bug report / 근무 태도 불량 신고"
+description: "The soldier dozed off, skipped a watch, or misbehaved? / 이등병이 졸았거나, 근무를 안 섰거나, 이상하게 굴었나요?"
+title: "[Bug] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        신고 감사합니다! 당직사관이 확인하겠습니다 🫡
-        Thanks for reporting! The duty officer will look into it.
+        Thanks for reporting! The duty officer will look into it 🫡
+        신고 감사합니다! 당직사관이 확인하겠습니다.
 
-        ⚠️ 보안 취약점은 여기 말고 [비공개 제보](https://github.com/s3onghyun/bulchimbeon/security/advisories/new)로 보내주세요.
-        Please report security issues privately via the link above, not here.
+        ⚠️ Please report security issues [privately](https://github.com/s3onghyun/bulchimbeon/security/advisories/new), not here.
+        보안 취약점은 여기 말고 위 링크로 비공개 제보해주세요.
   - type: textarea
     id: what-happened
     attributes:
-      label: "무슨 일이 있었나요? / What happened?"
-      placeholder: "예) 에이전트가 끝났는데 근무 교대를 안 함 / e.g. Agents finished but it never handed over"
+      label: "What happened? / 무슨 일이 있었나요?"
+      placeholder: "e.g. Agents finished but it never handed over / 예) 에이전트가 끝났는데 근무 교대를 안 함"
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: "기대한 동작 / Expected behavior"
+      label: "Expected behavior / 기대한 동작"
     validations:
       required: true
   - type: dropdown
     id: mode
     attributes:
-      label: "근무 형태 / Watch mode"
+      label: "Watch mode / 근무 형태"
       options:
-        - "화면 켜둠 / Keep display on (caffeinate -d)"
-        - "화면은 꺼져도 맥은 깨어 있음 / Display may sleep (caffeinate -i)"
-        - "덮개 닫아도 깨어 있음 / Lid closed (admin)"
-        - "모름 / Not sure"
+        - "Keep display on (caffeinate -d) / 화면 켜둠"
+        - "Display may sleep (caffeinate -i) / 화면은 꺼져도 맥은 깨어 있음"
+        - "Lid closed (admin) / 덮개 닫아도 깨어 있음"
+        - "Not sure / 모름"
   - type: input
     id: version
     attributes:
-      label: "불침번 버전 / App version"
-      description: "메뉴 하단 'v0.x.x' / Shown at the bottom of the menu"
-      placeholder: "v0.4.0"
+      label: "App version / 불침번 버전"
+      description: "Shown at the bottom of the menu / 메뉴 하단 'v0.x.x'"
+      placeholder: "v0.6.9"
     validations:
       required: true
   - type: input
     id: macos
     attributes:
-      label: "macOS 버전·칩 / macOS version & chip"
+      label: "macOS version & chip / macOS 버전·칩"
       placeholder: "macOS 26.1, Apple Silicon"
     validations:
       required: true
   - type: textarea
     id: diagnose
     attributes:
-      label: "진단 출력 (에이전트 감지 문제일 때) / Diagnose output (for detection issues)"
+      label: "Diagnose output (for detection issues) / 진단 출력 (에이전트 감지 문제일 때)"
       description: |
         `/Applications/Bulchimbeon.app/Contents/MacOS/Bulchimbeon --diagnose`
-        실행 파일 경로에 사용자 이름이 보이면 가려도 됩니다. 명령줄 인자는 출력되지 않습니다.
         Feel free to redact your username in paths. Command-line arguments are never printed.
+        실행 파일 경로에 사용자 이름이 보이면 가려도 됩니다. 명령줄 인자는 출력되지 않습니다.
       render: text
   - type: textarea
     id: log
     attributes:
-      label: "근무일지 마지막 몇 줄 / Last lines of the duty log"
+      label: "Last lines of the duty log / 근무일지 마지막 몇 줄"
       description: "`tail -20 ~/Library/Application\\ Support/Bulchimbeon/duty-log.txt`"
       render: text

@@ -10,7 +10,7 @@
 现在由一个像素风小兵来替你的 Mac 值夜班。
 
 > 📝 本中文版由 AI 翻译，欢迎提交 PR 改进表达。
-> [English](README.en.md) · [한국어](README.md) · [日本語](README.ja.md)
+> [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md)
 
 ![Bulchimbeon 演示](docs/media/demo.gif)
 
@@ -90,7 +90,7 @@ brew update && brew upgrade --cask bulchimbeon
 - "正在工作"的判断：Claude Code 只在工作时自己启动的 `caffeinate` 子进程，或进程树的 CPU 使用率（60 秒平均）
 - 判断逻辑位于不含系统调用的状态机（`DutyEngine`）中，使用伪时钟做了场景测试
 
-详情：[English README](README.en.md) · [设计文档（韩语）](docs/design.md)
+详情：[English README](README.md) · [设计文档（韩语）](docs/design.md)
 
 ## 安全
 

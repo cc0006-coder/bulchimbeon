@@ -10,7 +10,7 @@
 みんなが眠れるように一人が夜通し見張る当番のことです。ピクセルアートの二等兵が、あなたの Mac の不寝番を務めます。
 
 > 📝 この日本語版は AI による翻訳です。より自然な表現への修正 PR を歓迎します。
-> [English](README.en.md) · [한국어](README.md) · [简体中文](README.zh-CN.md)
+> [English](README.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md)
 
 ![Bulchimbeon デモ](docs/media/demo.gif)
 
@@ -90,7 +90,7 @@ macOS 13 以降、ユニバーサル（Apple Silicon・Intel）。
 - 「作業中」の判定: Claude Code が作業中にだけ自ら起動する `caffeinate` 子プロセス、またはプロセスツリーの CPU 使用率（60 秒平均）
 - 判定ロジックはシステム呼び出しのない状態機械（`DutyEngine`）にあり、偽の時計でシナリオテスト済み
 
-詳細: [English README](README.en.md) · [設計ドキュメント（韓国語）](docs/design.md)
+詳細: [English README](README.md) · [設計ドキュメント（韓国語）](docs/design.md)
 
 ## セキュリティ
 

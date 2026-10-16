@@ -1,43 +1,46 @@
-name: "🤖 새 에이전트 감지 요청 / New agent request"
-description: "목록에 없는 AI 에이전트도 감지해 주세요 / Please detect another AI agent"
-title: "[에이전트 요청] "
+name: "🤖 New agent request / 새 에이전트 감지 요청"
+description: "Please detect another AI agent / 목록에 없는 AI 에이전트도 감지해 주세요"
+title: "[Agent request] "
 labels: ["agent-request"]
 body:
   - type: markdown
     attributes:
       value: |
-        기다리기 어렵다면 지금 바로 직접 추가할 수도 있습니다 / You can add it yourself right now:
+        Can't wait? You can add it yourself right now / 기다리기 어렵다면 지금 바로 직접 추가할 수도 있습니다:
         `defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>`
+
+        Want to add it to the built-in list in a PR? See [CONTRIBUTING.md → Adding an agent](https://github.com/s3onghyun/bulchimbeon/blob/main/CONTRIBUTING.md#adding-an-agent).
+        직접 PR 로 추가하려면 [CONTRIBUTING.md → 에이전트 추가하기](https://github.com/s3onghyun/bulchimbeon/blob/main/CONTRIBUTING.md#에이전트-추가하기)를 보세요.
   - type: input
     id: agent
     attributes:
-      label: "에이전트 이름·링크 / Agent name & link"
+      label: "Agent name & link / 에이전트 이름·링크"
       placeholder: "Goose — https://github.com/block/goose"
     validations:
       required: true
   - type: dropdown
     id: install
     attributes:
-      label: "설치 방식 / How is it installed?"
+      label: "How is it installed? / 설치 방식"
       multiple: true
       options:
-        - "네이티브 바이너리 / Native binary"
+        - "Native binary / 네이티브 바이너리"
         - "Homebrew"
         - "npm / npx"
         - "bun / deno"
         - "pip / uv"
-        - "IDE 확장 내장 / Bundled in an IDE extension"
-        - "기타 / Other"
+        - "Bundled in an IDE extension / IDE 확장 내장"
+        - "Other / 기타"
     validations:
       required: true
   - type: textarea
     id: process
     attributes:
-      label: "실행 중 프로세스 모습 / How the process looks while running"
+      label: "How the process looks while running / 실행 중 프로세스 모습"
       description: |
-        에이전트를 실행한 상태에서 / While the agent is running:
+        While the agent is running / 에이전트를 실행한 상태에서:
         `ps -Axo comm=,args= | grep -i <name>`
-        ⚠️ API 키 같은 인자가 보이면 꼭 지워주세요. / Remove any secrets (API keys) from arguments!
+        ⚠️ Remove any secrets (API keys) from arguments! / API 키 같은 인자가 보이면 꼭 지워주세요.
       render: text
     validations:
       required: true
