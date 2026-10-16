@@ -97,7 +97,7 @@ public enum Sprites {
 
     /// `theme` 의 덧그림을 입힌 프레임. 그릴 때도 같은 테마를 `draw(in:theme:)` 에 넘긴다.
     public static func frames(_ pose: Pose, theme: UniformTheme) -> [PixelSprite] {
-        frames(pose).map { theme.dress($0, pose: pose) }
+        frames(pose).map { theme.dress($0) }
     }
 
     // 머리(방탄모 + 얼굴) 공통부

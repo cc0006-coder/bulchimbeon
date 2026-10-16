@@ -78,15 +78,8 @@ import Testing
     @Test func overlaysLandOnlyOnClothingPixels() {
         let theme = UniformTheme(id: "test", nameKo: "시험", nameEn: "Test", colors: ["A": 0x123456],
                                  overlays: [.init(["AAAA"], x: 0, y: 0)])
-        let dressed = theme.dress(PixelSprite(["KSU.", "...."]), pose: .duty)
+        let dressed = theme.dress(PixelSprite(["KSU.", "...."]))
         #expect(dressed.rows == ["KSA.", "...."])
-    }
-
-    @Test func overlaysRespectPoseFilter() {
-        let theme = UniformTheme(id: "test", nameKo: "시험", nameEn: "Test", colors: ["A": 0x123456],
-                                 overlays: [.init(["A"], x: 0, y: 0, poses: [.salute])])
-        #expect(theme.dress(PixelSprite(["U"]), pose: .salute).rows == ["A"])
-        #expect(theme.dress(PixelSprite(["U"]), pose: .duty).rows == ["U"])
     }
 
     @Test func registryStartsWithDefaultAndHasUniqueIDs() {

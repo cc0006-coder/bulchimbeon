@@ -8,23 +8,20 @@ import CoreGraphics
 ///
 /// 테마 추가: 아래 `navy`·`arctic` 처럼 하나 만들고 `all` 끝에 넣은 뒤 `make test`.
 public struct UniformTheme: Sendable, Identifiable, Equatable {
-    /// 테마가 바꿀 수 있는 문자: 방탄모(H h), 전투복(U u), 전투화(B), 손전등(L), 테마 전용 장식(A a).
+    /// 테마가 바꿀 수 있는 문자: 방탄모(H h), 전투복(U u), 전투화(B), 손전등(L), 테마 전용 장식(A).
     /// 외곽선·눈(K), 피부(S), 볼(P), 입(M), 불빛(Y y), zzz(Z), 별(W), 땅(D d)은 바꿀 수 없다.
-    public static let themeableCharacters: Set<Character> = ["H", "h", "U", "u", "B", "L", "A", "a"]
+    public static let themeableCharacters: Set<Character> = ["H", "h", "U", "u", "B", "L", "A"]
 
     /// 옷 위의 덧그림. 기본 스프라이트에서 옷(테마 문자) 픽셀 위에만 찍히고, 얼굴·외곽선·빈칸은 건드리지 않는다.
     public struct Overlay: Sendable, Equatable {
         public let sprite: PixelSprite
         public let x: Int
         public let y: Int
-        /// nil 이면 모든 포즈
-        public let poses: Set<Sprites.Pose>?
 
-        public init(_ rows: [String], x: Int, y: Int, poses: Set<Sprites.Pose>? = nil) {
+        public init(_ rows: [String], x: Int, y: Int) {
             sprite = PixelSprite(rows)
             self.x = x
             self.y = y
-            self.poses = poses
         }
     }
 
@@ -73,9 +70,9 @@ public struct UniformTheme: Sendable, Identifiable, Equatable {
     public func cgColor(_ ch: Character) -> CGColor? { hex(ch).map(Palette.cgColor(hex:)) }
 
     /// 기본 스프라이트에 이 테마의 덧그림을 입힌다. 옷 픽셀 위에만 찍힌다.
-    public func dress(_ sprite: PixelSprite, pose: Sprites.Pose) -> PixelSprite {
+    public func dress(_ sprite: PixelSprite) -> PixelSprite {
         var grid = sprite.rows.map(Array.init)
-        for overlay in overlays where overlay.poses?.contains(pose) ?? true {
+        for overlay in overlays {
             for (dy, row) in overlay.sprite.rows.enumerated() {
                 for (dx, ch) in row.enumerated() where ch != "." {
                     let gx = overlay.x + dx, gy = overlay.y + dy
