@@ -94,9 +94,6 @@ var (
 	scriptRunners   = []string{"node", "bun", "deno"}
 	inlineEvalFlags = []string{"-e", "--eval", "-p", "--print"}
 	customNameRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$`)
-	// swiftCustomNameRE is the same rule as ICU evaluates it in Swift, where `$` also
-	// matches before one final line break. CustomKinds keeps that for parity.
-	swiftCustomNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,31}(?:\r\n|[\n\v\f\r\x{85}\x{2028}\x{2029}])?$`)
 )
 
 // Argument limits for the process scanner (same as the macOS app).
@@ -200,7 +197,7 @@ func CustomKinds(names []string) []AgentKind {
 	seen := map[string]bool{}
 	var kinds []AgentKind
 	for _, name := range names {
-		if len(kinds) >= MaxCustomAgents || !swiftCustomNameRE.MatchString(name) || seen[name] {
+		if len(kinds) >= MaxCustomAgents || !customNameRE.MatchString(name) || seen[name] {
 			continue
 		}
 		seen[name] = true
@@ -209,7 +206,7 @@ func CustomKinds(names []string) []AgentKind {
 	return kinds
 }
 
-// ValidCustomAgentName applies the `customAgents` naming rule strictly (no line break).
+// ValidCustomAgentName applies the `customAgents` naming rule.
 // Settings front ends use it before storing a name.
 func ValidCustomAgentName(name string) bool { return customNameRE.MatchString(name) }
 

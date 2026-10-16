@@ -110,9 +110,9 @@
     {"name": "length and first-character rules",
      "input": ["a", "A1.b_c-d", "-flag", ".hidden", "_x", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "한글", "a/b"],
      "displayNames": ["a", "A1.b_c-d", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"]},
-    {"name": "the Swift (ICU) pattern's $ also matches before one final line break",
+    {"name": "line breaks are rejected, trailing ones too",
      "input": ["goose\n", "a\nb", "amp\r\n", "x\n\n"],
-     "displayNames": ["goose\n", "amp\r\n"]}
+     "displayNames": []}
   ],
   "count": [
     {"name": "counts per agent, hooks and shells excluded",
