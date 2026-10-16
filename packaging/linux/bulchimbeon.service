@@ -1,0 +1,19 @@
+# Bulchimbeon (불침번) systemd user unit.
+# Installed by scripts/install-linux.sh to ~/.config/systemd/user/, or by the .deb to
+# /usr/lib/systemd/user/ (with ExecStart=/usr/bin/bulchimbeon run).
+#   systemctl --user enable --now bulchimbeon
+#   journalctl --user -u bulchimbeon -f
+[Unit]
+Description=Bulchimbeon (불침번): keep this machine awake while AI coding agents work
+Documentation=https://github.com/s3onghyun/bulchimbeon#linux
+
+[Service]
+ExecStart=%h/.local/bin/bulchimbeon run
+Restart=on-failure
+RestartSec=5
+# Stopping the service also stops the systemd-inhibit helpers, so the lock is released.
+KillMode=control-group
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target
