@@ -5,13 +5,19 @@
 
 ## 다음 버전
 
+## 0.7.0 — 2026-10-16
+
 - 군복 테마: 메뉴 **🎽 군복** 에서 기본 전투복·네이비·설원 중 고른다. 옷 색과 무늬만 바뀌고 얼굴은 그대로, 기본은 지금과 똑같다. 새 설정 키 `uniformTheme` (#17)
 - 리눅스 데몬 v0.1 (Go): `bulchimbeon run|status|doctor|config`, systemd 사용자 유닛, tar.gz·.deb 릴리스 파일 (amd64·arm64). 잠자기·화면 꺼짐을 logind inhibitor 두 개로 막고, SSH·헤드리스 기기용 polkit 규칙은 안내만 한다 (#16)
 - 엔진 골든 픽스처 `testdata/engine`: Swift Core 와 Go 엔진이 같은 파일을 돌려 동작을 OS 간에 고정
 - 1.0 호환성 약속 문서화 (`docs/compatibility.md`): 설정 키, 실행 인자, 근무일지 형식. 테스트로 고정 (#7)
 - 설정 키·허용 값을 Core `SettingsKey` 로 모음 (동작 변화 없음)
 - README: 이등병 어록, 비슷한 앱(Adrafinil)과 비교
-- README 영어 우선 (`README.md` 영어, 한국어는 `README.ko.md`), CONTRIBUTING 영·한 전체판, 이슈 양식(기능 제안·번역 수정 추가)·PR 템플릿 영어 우선
+- README 영어 우선 (`README.md` 영어, 한국어는 `README.ko.md`), CONTRIBUTING 영·한 전체판, 이슈 양식(기능 제안·번역 수정 추가)·PR 템플릿 영어 우선 (#8)
+- 리눅스 Homebrew: `brew install s3onghyun/tap/bulchimbeon-linux` 후 `brew services start bulchimbeon-linux`. 맥 cask 와 이름이 겹치지 않게 `-linux` 를 붙였다
+- 안전 장치: 워크플로 최소 권한·Action SHA 고정, 포크 PR 실행 승인, main 브랜치·`v*` 태그 보호, `AGENTS.md`, `CODEOWNERS`, AI 도움 기여 정책 (#15)
+- `scripts/bump-cask.sh`: macOS·리눅스 어디서든 돌고, 리눅스 tarball 두 개도 체크섬·출처 증명을 검증한 뒤 tap 의 formula 를 함께 갱신
+- 고마워요 @dannyward630: 첫 기여로 폭염 주의보·전투휴식·근무지 이탈·인수인계 대사를 영·한 문구 테스트에 넣어 주셨습니다 (#14, #10 해결)
 
 ## 0.6.9 — 2026-10-14
 
