@@ -98,6 +98,18 @@ The source of truth is the ASCII grids in `Sources/BulchimbeonCore/Sprites.swift
 After editing, run `make icons` and commit the regenerated `Resources/AppIcon.icns` and `docs/sprites-preview.png`
 with your change. A character that isn't in the palette fails the tests.
 
+### Adding a uniform theme
+
+1. In `Sources/BulchimbeonCore/UniformTheme.swift`, add a theme like `navy` or `arctic` and append it to `all`.
+   The `id` is lowercase English (for example `desert`); it is stored as a setting value, so it can't change after a
+   release. Give the name in both Korean and English.
+2. Only clothing and props change. `colors` may override only `themeableCharacters` (helmet `H h`, uniform `U u`,
+   boots `B`, flashlight `L`, theme accents `A`), and `overlays` land only on clothing pixels. The face, skin and
+   outline stay the same for everyone.
+3. Themes, not countries: **no national flags, real rank insignia or unit patches, and no real army's actual uniform.**
+4. Run `make test`. `UniformThemeTests` checks the theme rules, every pose and frame size, and that the default theme is
+   unchanged. On macOS, run `make icons` and commit the new theme row in `docs/sprites-preview.png`.
+
 ### Translations
 
 | File | Language | Notes |
@@ -224,6 +236,16 @@ PR 템플릿의 체크리스트와 같습니다.
 `Sources/BulchimbeonCore/Sprites.swift` 의 ASCII 그리드가 원본입니다. 문자 하나 = 픽셀 하나, 16×16.
 수정 후 `make icons` 를 돌리고 다시 생성된 `Resources/AppIcon.icns`·`docs/sprites-preview.png` 를 함께 커밋해주세요.
 팔레트에 없는 문자는 테스트에서 걸립니다.
+
+### 군복 테마 추가하기
+
+1. `Sources/BulchimbeonCore/UniformTheme.swift` 에 `navy`·`arctic` 처럼 테마를 하나 만들고 `all` 끝에 넣습니다.
+   `id` 는 소문자 영어 (예: `desert`) — 설정 값으로 저장되므로 출시 후에는 바꿀 수 없습니다. 이름은 한국어·영어 둘 다.
+2. 바꿀 수 있는 건 옷과 소품뿐입니다. `colors` 는 `themeableCharacters` (방탄모 `H h`, 전투복 `U u`, 전투화 `B`,
+   손전등 `L`, 테마 장식 `A`) 만 덮어쓸 수 있고, `overlays` 는 옷 픽셀 위에만 찍힙니다. 얼굴·피부·외곽선은 그대로입니다.
+3. 나라가 아니라 테마입니다. **국기, 실제 계급장·부대 마크, 특정 군대의 실제 군복은 넣지 않습니다.**
+4. `make test` 를 돌립니다. 테마 규칙, 모든 포즈·프레임의 크기, 기본 테마가 그대로인지를 `UniformThemeTests` 가 확인합니다.
+   macOS 에서 `make icons` 를 돌려 `docs/sprites-preview.png` 에 새 테마 줄이 생긴 것을 같이 커밋해주세요.
 
 ### 번역
 

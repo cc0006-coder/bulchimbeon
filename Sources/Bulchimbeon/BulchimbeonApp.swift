@@ -8,6 +8,7 @@ struct BulchimbeonApp: App {
     @StateObject private var duty = DutyController.shared
     @StateObject private var animator = SpriteAnimator()
     @StateObject private var patrol = PatrolController.shared
+    @StateObject private var uniform = UniformSetting.shared
 
     init() {
         // Bulchimbeon.app/Contents/MacOS/Bulchimbeon --diagnose → 진단 출력 후 종료 (UI 없음)
@@ -20,9 +21,9 @@ struct BulchimbeonApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            DutyMenu(duty: duty, patrol: patrol)
+            DutyMenu(duty: duty, patrol: patrol, uniform: uniform)
         } label: {
-            MenuBarLabel(duty: duty, animator: animator)
+            MenuBarLabel(duty: duty, animator: animator, uniform: uniform)
         }
         .menuBarExtraStyle(.menu)
     }
@@ -31,6 +32,7 @@ struct BulchimbeonApp: App {
 struct MenuBarLabel: View {
     @ObservedObject var duty: DutyController
     @ObservedObject var animator: SpriteAnimator
+    @ObservedObject var uniform: UniformSetting
 
     var body: some View {
         let frames = SpriteImages.frames(duty.pose)
@@ -71,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct DutyMenu: View {
     @ObservedObject var duty: DutyController
     @ObservedObject var patrol: PatrolController
+    @ObservedObject var uniform: UniformSetting
 
     private static let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
     private static let repoURL = URL(string: "https://github.com/s3onghyun/bulchimbeon")!
@@ -116,6 +119,12 @@ struct DutyMenu: View {
         if patrol.enabled {
             Picker(L10n.t("이등병 크기", "Soldier size"), selection: $patrol.scale) {
                 ForEach(PatrolController.scales, id: \.self) { Text("\($0)×").tag($0) }
+            }
+        }
+        Picker(L10n.t("🎽 군복", "🎽 Uniform"), selection: $uniform.themeID) {
+            ForEach(UniformTheme.all) { theme in
+                Label { Text(theme.name) } icon: { Image(nsImage: SpriteImages.preview(theme)) }
+                    .tag(theme.id)
             }
         }
         Picker(L10n.t("배터리 철수 기준", "Stand down on battery"), selection: $duty.batteryFloor) {
