@@ -278,10 +278,14 @@ import Testing
         var lines = Lines.onDuty(lang) + Lines.standby(lang) + Lines.off(lang)
         let notices = [Lines.reportForDuty(lang), Lines.agentArrived("Claude Code", lang), Lines.handover("Claude Code", lang),
                        Lines.timeUp(lang), Lines.batteryRetreat(15, lang), Lines.lidFallback(lang),
-                       Lines.lidResumeFallback(lang), Lines.lidLeftOn(lang)]
+                       Lines.lidResumeFallback(lang), Lines.lidLeftOn(lang), Lines.heatAdvisory(lang),
+                       Lines.heatRest(lang), Lines.heatResume(lidDowngraded: false, lang),
+                       Lines.heatResume(lidDowngraded: true, lang), Lines.postAbandoned(lang)]
         lines += notices.flatMap { [$0.title, $0.body] }
         lines += [Lines.Speech.reporting(lang), Lines.Speech.arrived(lang), Lines.Speech.handover(lang),
-                  Lines.Speech.timeUp(lang), Lines.Speech.resumed(lang), Lines.Speech.waiting(lang)]
+                  Lines.Speech.timeUp(lang), Lines.Speech.resumed(lang), Lines.Speech.heat(lang),
+                  Lines.Speech.rest(lang), Lines.Speech.backFromRest(lang), Lines.Speech.notAWOL(lang),
+                  Lines.Speech.handoverReport(lang), Lines.Speech.waiting(lang)]
         return lines
     }
 
