@@ -43,6 +43,7 @@ final class PatrolController: ObservableObject {
         enabled = defaults.object(forKey: Keys.enabled) as? Bool ?? true
         let storedScale = defaults.object(forKey: Keys.scale) as? Int ?? SettingsValues.defaultPatrolScale
         scale = Self.scales.contains(storedScale) ? storedScale : SettingsValues.defaultPatrolScale
+        view.theme = SpriteImages.theme
     }
 
     func start() {
@@ -133,13 +134,13 @@ final class PatrolController: ObservableObject {
         case .standby where abs(x - cornerX) > 1:
             walk(from: x, to: cornerX) // 대기 위치(오른쪽 구석)로 걸어간 뒤 두리번
         case .standby, .salute, .patrol, .sleeping, .heat:
-            view.stand(at: x, frames: Sprites.frames(pose), interval: 0.5)
+            view.stand(at: x, frames: Sprites.frames(pose, theme: view.theme), interval: 0.5)
         }
     }
 
     private func walk(from x: CGFloat, to target: CGFloat) {
         facingRight = target > x
-        let frames = Sprites.frames(.patrol).map { facingRight ? $0 : $0.mirrored() }
+        let frames = Sprites.frames(.patrol, theme: view.theme).map { facingRight ? $0 : $0.mirrored() }
         let duration = max(0.1, abs(target - x) / walkSpeed)
         view.walk(from: x, to: target, duration: duration, frames: frames, interval: 0.25)
         let timer = Timer(timeInterval: duration, repeats: false) { _ in
@@ -147,6 +148,12 @@ final class PatrolController: ObservableObject {
         }
         RunLoop.main.add(timer, forMode: .common)
         legTimer = timer
+    }
+
+    /// 군복이 바뀌면 지금 동작을 새 옷으로 다시 시작
+    func redress() {
+        view.theme = SpriteImages.theme
+        restartMotion()
     }
 
     /// 끝(또는 대기 위치)에 도착: 근무 중이면 돌아서고, 대기면 두리번
@@ -190,6 +197,8 @@ final class PatrolView: NSView {
     private let bubble = CALayer()
     private var spriteCache: [String: CGImage] = [:]
     private var speech: String?
+    /// 입은 군복. 이미지 캐시 키에 들어가므로 바뀌면 다음 프레임부터 새 옷으로 그려진다.
+    var theme: UniformTheme = .default
     var pixel: CGFloat = 2 {
         didSet { soldier.bounds = CGRect(x: 0, y: 0, width: 16 * pixel, height: 16 * pixel) }
     }
@@ -275,14 +284,14 @@ final class PatrolView: NSView {
     }
 
     private func image(for sprite: PixelSprite) -> CGImage? {
-        let key = sprite.rows.joined()
+        let key = theme.id + ":" + sprite.rows.joined()
         if let cached = spriteCache[key] { return cached }
         // 픽셀 1개 = 1px 로 렌더링하고, 확대는 레이어(nearest)가 맡는다
         guard let ctx = CGContext(data: nil, width: sprite.width, height: sprite.height, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.setShouldAntialias(false)
-        sprite.draw(in: ctx, pixel: 1)
+        sprite.draw(in: ctx, pixel: 1, theme: theme)
         let image = ctx.makeImage()
         if spriteCache.count > 64 { spriteCache.removeAll() }
         spriteCache[key] = image

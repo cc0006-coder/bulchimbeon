@@ -22,11 +22,14 @@ public enum Palette {
     ]
 
     public static func cgColor(_ ch: Character) -> CGColor? {
-        guard let v = hex[ch] else { return nil }
-        return CGColor(red: CGFloat((v >> 16) & 0xFF) / 255,
-                       green: CGFloat((v >> 8) & 0xFF) / 255,
-                       blue: CGFloat(v & 0xFF) / 255,
-                       alpha: 1)
+        hex[ch].map(cgColor(hex:))
+    }
+
+    public static func cgColor(hex v: UInt32) -> CGColor {
+        CGColor(red: CGFloat((v >> 16) & 0xFF) / 255,
+                green: CGFloat((v >> 8) & 0xFF) / 255,
+                blue: CGFloat(v & 0xFF) / 255,
+                alpha: 1)
     }
 }
 
@@ -55,11 +58,11 @@ public struct PixelSprite: Sendable, Equatable {
         PixelSprite(rows.map { String($0.reversed()) })
     }
 
-    /// CoreGraphics(y-up) 컨텍스트에 그린다. origin 은 스프라이트의 좌하단.
-    public func draw(in ctx: CGContext, origin: CGPoint = .zero, pixel: CGFloat) {
+    /// CoreGraphics(y-up) 컨텍스트에 그린다. origin 은 스프라이트의 좌하단. 색은 `theme` 팔레트.
+    public func draw(in ctx: CGContext, origin: CGPoint = .zero, pixel: CGFloat, theme: UniformTheme = .default) {
         for (y, row) in rows.enumerated() {
             for (x, ch) in row.enumerated() {
-                guard let color = Palette.cgColor(ch) else { continue }
+                guard let color = theme.cgColor(ch) else { continue }
                 ctx.setFillColor(color)
                 ctx.fill(CGRect(x: origin.x + CGFloat(x) * pixel,
                                 y: origin.y + CGFloat(height - 1 - y) * pixel,
@@ -90,6 +93,11 @@ public enum Sprites {
         case .patrol: [walkA, walkB]
         case .heat: [heatA, heatB]
         }
+    }
+
+    /// `theme` 의 덧그림을 입힌 프레임. 그릴 때도 같은 테마를 `draw(in:theme:)` 에 넘긴다.
+    public static func frames(_ pose: Pose, theme: UniformTheme) -> [PixelSprite] {
+        frames(pose).map { theme.dress($0, pose: pose) }
     }
 
     // 머리(방탄모 + 얼굴) 공통부

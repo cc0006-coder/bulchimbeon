@@ -54,11 +54,13 @@ for (name, px) in iconSizes {
 }
 
 // 미리보기: 포즈별 한 줄, 프레임을 가로로. 흰 배경 + 메뉴바 실제 크기(1x) 도 함께.
+// 그 아래 기본이 아닌 군복 테마마다 한 줄: 포즈별 첫 프레임.
 let poses = Sprites.Pose.allCases
+let themes = UniformTheme.all.filter { $0 != .default }
 let scale: CGFloat = 12, cell = 16 * scale, gap: CGFloat = 16
-let maxFrames = poses.map { Sprites.frames($0).count }.max()!
+let maxFrames = max(poses.map { Sprites.frames($0).count }.max()!, poses.count)
 let previewW = Int(gap + CGFloat(maxFrames) * (cell + gap) + 40)
-let previewH = Int(gap + CGFloat(poses.count) * (cell + gap))
+let previewH = Int(gap + CGFloat(poses.count + themes.count) * (cell + gap))
 writePNG(outDir.appendingPathComponent("sprites-preview.png"), width: previewW, height: previewH) { ctx in
     ctx.setFillColor(CGColor(red: 0.93, green: 0.93, blue: 0.95, alpha: 1))
     ctx.fill(CGRect(x: 0, y: 0, width: previewW, height: previewH))
@@ -73,6 +75,16 @@ writePNG(outDir.appendingPathComponent("sprites-preview.png"), width: previewW, 
         }
         // 실제 메뉴바 크기
         Sprites.frames(pose)[0].draw(in: ctx, origin: CGPoint(x: CGFloat(previewW) - 30, y: y), pixel: 1)
+    }
+    for (index, theme) in themes.enumerated() {
+        let y = CGFloat(previewH) - gap - CGFloat(poses.count + index + 1) * (cell + gap) + gap
+        for (col, pose) in poses.enumerated() {
+            let x = gap + CGFloat(col) * (cell + gap)
+            ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+            ctx.fill(CGRect(x: x, y: y, width: cell, height: cell))
+            Sprites.frames(pose, theme: theme)[0].draw(in: ctx, origin: CGPoint(x: x, y: y), pixel: scale, theme: theme)
+        }
+        Sprites.frames(.standby, theme: theme)[0].draw(in: ctx, origin: CGPoint(x: CGFloat(previewW) - 30, y: y), pixel: 1, theme: theme)
     }
 }
 

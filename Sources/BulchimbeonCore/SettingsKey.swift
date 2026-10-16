@@ -13,6 +13,7 @@ public enum SettingsKey: String, CaseIterable, Sendable {
     case customAgents
     case patrolEnabled
     case patrolScale
+    case uniformTheme
 
     // 내부 상태 — 재시작 복귀용, 손대지 않는다
     case dutyOrder
@@ -24,7 +25,7 @@ public enum SettingsKey: String, CaseIterable, Sendable {
     public var isPublic: Bool {
         switch self {
         case .dutyMode, .batteryFloor, .agentGraceMinutes, .agentWatchCountsIdle,
-             .customAgents, .patrolEnabled, .patrolScale:
+             .customAgents, .patrolEnabled, .patrolScale, .uniformTheme:
             true
         case .dutyOrder, .dutyOrderUntil, .lidEngagedByUs, .simulateHeat:
             false
@@ -40,6 +41,8 @@ public enum SettingsValues {
     public static let defaultGraceMinutes = 5
     public static let patrolScales = [2, 3]
     public static let defaultPatrolScale = 2
+    /// `uniformTheme` 값은 `UniformTheme.all` 의 id. 모르는 값이면 기본.
+    public static let defaultUniformTheme = UniformTheme.default.id
 }
 
 /// 공개 실행 인자. 나머지(`--demo`, `--demo-scale`)는 홍보 녹화용이라 약속하지 않는다.

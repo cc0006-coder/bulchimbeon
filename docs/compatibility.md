@@ -21,6 +21,7 @@
 | `customAgents` | 문자열 배열 | 실행 파일 이름 | 없음 | (메뉴 없음) |
 | `patrolEnabled` | 불리언 | `true` · `false` | `true` | 🚶 순찰 모드 |
 | `patrolScale` | 정수 | `2` · `3` | `2` | 이등병 크기 |
+| `uniformTheme` | 문자열 | `default` · `navy` · `arctic` (테마 id) | `default` | 🎽 군복 |
 
 ```bash
 defaults write io.github.s3onghyun.bulchimbeon customAgents -array goose amp
@@ -28,6 +29,9 @@ defaults write io.github.s3onghyun.bulchimbeon agentGraceMinutes -int 10
 ```
 
 앱 언어는 macOS 표준인 앱 도메인 `AppleLanguages` 를 쓴다 (메뉴 **언어 / Language**).
+
+`uniformTheme` 의 테마 id 는 한 번 출시되면 이름을 바꾸거나 없애지 않는다. 테마는 늘어날 수 있다.
+군복은 사용자가 메뉴에서 고른 것만 입는다 (언어·지역으로 자동 선택하지 않는다). 테마의 색·모양은 약속하지 않는다.
 
 ### 약속하지 않는 키
 
