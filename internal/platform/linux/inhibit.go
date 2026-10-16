@@ -17,7 +17,7 @@ import (
 // Who and Why are what `systemd-inhibit --list` shows. Why is a constant: never agent
 // names or process arguments.
 const (
-	InhibitWho = "Bulchimbeon"
+	InhibitWho = platform.Who
 	InhibitWhy = "Bulchimbeon on duty: keeping AI agents awake"
 )
 

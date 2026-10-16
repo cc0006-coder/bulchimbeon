@@ -15,6 +15,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -64,6 +65,7 @@ func (s *ProcScanner) Scan(kinds []engine.AgentKind) (platform.ProcessScan, erro
 		scan.Snapshots = append(scan.Snapshots, snap)
 		scan.CPUTimes[snap.PID] = ticks * uint64(1_000_000_000/s.ClockTick)
 	}
+	sort.Slice(scan.Snapshots, func(i, j int) bool { return scan.Snapshots[i].PID < scan.Snapshots[j].PID })
 	return scan, nil
 }
 

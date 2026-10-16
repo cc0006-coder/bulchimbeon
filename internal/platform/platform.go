@@ -12,6 +12,9 @@ import (
 	"github.com/s3onghyun/bulchimbeon/internal/engine"
 )
 
+// Who is the name our locks carry in the OS's lock listings.
+const Who = "Bulchimbeon"
+
 // ErrNotImplemented is returned by backends that do not exist yet.
 var ErrNotImplemented = errors.New("not implemented on this platform yet")
 

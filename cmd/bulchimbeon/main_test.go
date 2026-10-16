@@ -1,0 +1,81 @@
+package main
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func runCLI(t *testing.T, args ...string) (int, string, string) {
+	t.Helper()
+	var out, errOut bytes.Buffer
+	code := cli(args, &out, &errOut)
+	return code, out.String(), errOut.String()
+}
+
+func TestCLI(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_STATE_HOME", "")
+	t.Setenv("LANG", "en_US.UTF-8")
+	t.Setenv("LANGUAGE", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+
+	if code, out, _ := runCLI(t, "help"); code != exitOK || !strings.Contains(out, "Usage: bulchimbeon <command>") {
+		t.Errorf("help = %d %q", code, out)
+	}
+	if code, _, _ := runCLI(t); code != exitUsage {
+		t.Errorf("no args = %d", code)
+	}
+	if code, _, errOut := runCLI(t, "fly"); code != exitUsage || !strings.Contains(errOut, `unknown command "fly"`) {
+		t.Errorf("unknown = %d %q", code, errOut)
+	}
+	if code, out, _ := runCLI(t, "version"); code != exitOK || out != "bulchimbeon dev\n" {
+		t.Errorf("version = %d %q", code, out)
+	}
+	if code, _, _ := runCLI(t, "status", "--lang", "jp"); code != exitUsage {
+		t.Errorf("bad --lang = %d", code)
+	}
+
+	if code, _, errOut := runCLI(t, "config", "set", "agentGraceMinutes", "10"); code != exitOK {
+		t.Fatalf("config set = %d %q", code, errOut)
+	}
+	if code, out, _ := runCLI(t, "config", "get", "agentGraceMinutes"); code != exitOK || out != "10\n" {
+		t.Errorf("config get = %d %q", code, out)
+	}
+	if code, _, errOut := runCLI(t, "config", "set", "agentGraceMinutes", "7"); code != exitFail || !strings.Contains(errOut, "1, 3, 5 or 10") {
+		t.Errorf("config set 7 = %d %q", code, errOut)
+	}
+	runCLI(t, "config", "set", "language", "ko")
+	if code, out, _ := runCLI(t, "status"); code != exitNotRunning || !strings.Contains(out, "불침번이 실행 중이 아닙니다") {
+		t.Errorf("status (ko setting) = %d %q", code, out)
+	}
+	if code, out, _ := runCLI(t, "status", "--lang", "en"); code != exitNotRunning || !strings.Contains(out, "Bulchimbeon is not running") {
+		t.Errorf("status --lang en = %d %q", code, out)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".config", "bulchimbeon", "settings.json")); err != nil {
+		t.Error(err)
+	}
+	if code, out, _ := runCLI(t, "config"); code != exitOK || !strings.Contains(out, "agentGraceMinutes      10") {
+		t.Errorf("config list = %d %q", code, out)
+	}
+}
+
+func TestTail(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "log")
+	os.WriteFile(path, []byte("a\nb\nc\nd\n"), 0o600)
+	if got := tail(path, 3); strings.Join(got, ",") != "b,c,d" {
+		t.Errorf("tail = %q", got)
+	}
+	os.WriteFile(path, nil, 0o600)
+	if got := tail(path, 3); got != nil {
+		t.Errorf("empty = %q", got)
+	}
+	if got := tail(filepath.Join(path, "missing"), 3); got != nil {
+		t.Errorf("missing = %q", got)
+	}
+}
