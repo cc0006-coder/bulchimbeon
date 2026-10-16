@@ -1,0 +1,76 @@
+{
+  "batteryRetreat": [
+    {"name": "at the floor on battery", "battery": {"percent": 20, "onBattery": true}, "floor": 20, "expect": true},
+    {"name": "above the floor", "battery": {"percent": 21, "onBattery": true}, "floor": 20, "expect": false},
+    {"name": "charging never retreats", "battery": {"percent": 5, "onBattery": false}, "floor": 20, "expect": false},
+    {"name": "floor off", "battery": {"percent": 5, "onBattery": true}, "floor": null, "expect": false},
+    {"name": "desktop without a battery", "battery": null, "floor": 20, "expect": false},
+    {"name": "empty battery", "battery": {"percent": 0, "onBattery": true}, "floor": 10, "expect": true}
+  ],
+  "agentWatchDecide": [
+    {"busyNow": true, "quietFor": 0, "grace": 300, "onDuty": false, "lowBattery": false, "expect": "engage"},
+    {"name": "low battery or heat blocks engaging", "busyNow": true, "quietFor": 0, "grace": 300, "onDuty": false, "lowBattery": true, "expect": "none"},
+    {"busyNow": true, "quietFor": 0, "grace": 300, "onDuty": true, "lowBattery": false, "expect": "none"},
+    {"name": "gap between caffeinate runs", "busyNow": false, "quietFor": 10, "grace": 300, "onDuty": true, "lowBattery": false, "expect": "none"},
+    {"busyNow": false, "quietFor": 299, "grace": 300, "onDuty": true, "lowBattery": false, "expect": "none"},
+    {"busyNow": false, "quietFor": 300, "grace": 300, "onDuty": true, "lowBattery": false, "expect": "handover"},
+    {"busyNow": false, "quietFor": 300, "grace": 300, "onDuty": true, "lowBattery": true, "expect": "handover"},
+    {"name": "quiet and not on duty", "busyNow": false, "quietFor": 999, "grace": 300, "onDuty": false, "lowBattery": false, "expect": "none"}
+  ],
+  "quietFor": [
+    {"name": "never seen working: counts from the watch start", "now": 1005, "lastBusyAt": null, "watchStartedAt": 1000, "expect": 5},
+    {"name": "work seen before the watch started is ignored", "now": 1005, "lastBusyAt": 900, "watchStartedAt": 1000, "expect": 5},
+    {"now": 1400, "lastBusyAt": 1100, "watchStartedAt": 1000, "expect": 300},
+    {"now": 1000, "lastBusyAt": 1000, "watchStartedAt": 1000, "expect": 0}
+  ],
+  "heatCoolDownSeconds": 120,
+  "heatDecide": [
+    {"level": "advisory", "onDuty": true, "resting": false, "advised": false, "coolSince": null, "now": 1000000, "expect": "advisory"},
+    {"name": "advisory only once", "level": "advisory", "onDuty": true, "resting": false, "advised": true, "coolSince": null, "now": 1000000, "expect": "none"},
+    {"level": "alert", "onDuty": true, "resting": false, "advised": true, "coolSince": null, "now": 1000000, "expect": "rest"},
+    {"level": "alert", "onDuty": true, "resting": false, "advised": false, "coolSince": null, "now": 1000000, "expect": "rest"},
+    {"name": "nothing to rest from when off duty", "level": "alert", "onDuty": false, "resting": false, "advised": false, "coolSince": null, "now": 1000000, "expect": "none"},
+    {"level": "caution", "onDuty": true, "resting": false, "advised": false, "coolSince": null, "now": 1000000, "expect": "none"},
+    {"level": "normal", "onDuty": true, "resting": false, "advised": false, "coolSince": 999000, "now": 1000000, "expect": "none"},
+    {"name": "cooled for 30 s is not enough", "level": "normal", "onDuty": false, "resting": true, "advised": true, "coolSince": 999970, "now": 1000000, "expect": "none"},
+    {"name": "cooled for the full cool-down", "level": "normal", "onDuty": false, "resting": true, "advised": true, "coolSince": 999880, "now": 1000000, "expect": "resume"},
+    {"name": "caution counts as cool", "level": "caution", "onDuty": false, "resting": true, "advised": false, "coolSince": 999000, "now": 1000000, "expect": "resume"},
+    {"name": "still hot", "level": "advisory", "onDuty": false, "resting": true, "advised": true, "coolSince": 999880, "now": 1000000, "expect": "none"},
+    {"name": "resting without a cool start", "level": "normal", "onDuty": false, "resting": true, "advised": true, "coolSince": null, "now": 1000000, "expect": "none"}
+  ],
+  "heatLevelName": [
+    {"name": "normal", "expect": "normal"},
+    {"name": "caution", "expect": "caution"},
+    {"name": "advisory", "expect": "advisory"},
+    {"name": "alert", "expect": "alert"},
+    {"name": "Alert", "expect": null},
+    {"name": "; rm -rf /", "expect": null},
+    {"name": "", "expect": null}
+  ],
+  "dutyResume": [
+    {"stored": null, "until": null, "now": 1000000, "expect": {"action": "none"}},
+    {"stored": "agentWatch", "until": null, "now": 1000000, "expect": {"action": "agentWatch"}},
+    {"name": "indefinitely", "stored": "timed", "until": null, "now": 1000000, "expect": {"action": "timed", "until": null}},
+    {"name": "10 minutes left", "stored": "timed", "until": 1000600, "now": 1000000, "expect": {"action": "timed", "until": 1000600}},
+    {"name": "exactly 24 hours left", "stored": "timed", "until": 1086400, "now": 1000000, "expect": {"action": "timed", "until": 1086400}},
+    {"name": "ended while closed", "stored": "timed", "until": 999999, "now": 1000000, "expect": {"action": "expired"}},
+    {"name": "ends right now", "stored": "timed", "until": 1000000, "now": 1000000, "expect": {"action": "expired"}},
+    {"name": "tampered: a week left", "stored": "timed", "until": 1604800, "now": 1000000, "expect": {"action": "none"}},
+    {"name": "not finite", "stored": "timed", "until": "inf", "now": 1000000, "expect": {"action": "none"}},
+    {"name": "unknown order", "stored": "rm -rf /", "until": null, "now": 1000000, "expect": {"action": "none"}}
+  ],
+  "dutyClock": [
+    {"seconds": 0, "expect": "0:00"},
+    {"seconds": 59, "expect": "0:59"},
+    {"seconds": 59.9, "expect": "0:59"},
+    {"seconds": 60, "expect": "1:00"},
+    {"seconds": 599, "expect": "9:59"},
+    {"seconds": 3599, "expect": "59:59"},
+    {"seconds": 3600, "expect": "1:00:00"},
+    {"seconds": 3903, "expect": "1:05:03"},
+    {"seconds": 86399, "expect": "23:59:59"},
+    {"seconds": 360000, "expect": "100:00:00"},
+    {"seconds": -5, "expect": "0:00"},
+    {"seconds": -0.5, "expect": "0:00"}
+  ]
+}
