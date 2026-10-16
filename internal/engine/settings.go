@@ -18,6 +18,7 @@ const (
 	KeyCustomAgents         = "customAgents"
 	KeyPatrolEnabled        = "patrolEnabled"
 	KeyPatrolScale          = "patrolScale"
+	KeyUniformTheme         = "uniformTheme"
 
 	// KeySimulateHeat is internal (not promised): `normal|caution|advisory|alert`, for testing.
 	KeySimulateHeat = "simulateHeat"
@@ -25,7 +26,7 @@ const (
 
 // PublicSettingsKeys lists the promised keys in their frozen order.
 var PublicSettingsKeys = []string{KeyDutyMode, KeyBatteryFloor, KeyAgentGraceMinutes, KeyAgentWatchCountsIdle,
-	KeyCustomAgents, KeyPatrolEnabled, KeyPatrolScale}
+	KeyCustomAgents, KeyPatrolEnabled, KeyPatrolScale, KeyUniformTheme}
 
 // InternalSettingsKeys are app state on macOS and may change at any time.
 var InternalSettingsKeys = []string{"dutyOrder", "dutyOrderUntil", "lidEngagedByUs", KeySimulateHeat}
@@ -41,6 +42,7 @@ const (
 	DefaultBatteryFloor = 20
 	DefaultGraceMinutes = 5
 	DefaultPatrolScale  = 2
+	DefaultUniformTheme = "default"
 )
 
 // LaunchArguments are the promised macOS launch flags. The Linux CLI accepts

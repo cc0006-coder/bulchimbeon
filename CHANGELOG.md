@@ -6,7 +6,7 @@
 ## 다음 버전
 
 - 군복 테마: 메뉴 **🎽 군복** 에서 기본 전투복·네이비·설원 중 고른다. 옷 색과 무늬만 바뀌고 얼굴은 그대로, 기본은 지금과 똑같다. 새 설정 키 `uniformTheme` (#17)
-- 리눅스 데몬 v0.1 (Go): `bulchimbeon run|status|diagnose|doctor|config`, systemd 사용자 유닛, tar.gz·.deb 릴리스 파일 (amd64·arm64). 잠자기·화면 꺼짐을 logind inhibitor 두 개로 막고, SSH·헤드리스 기기용 polkit 규칙은 안내만 한다 (#16)
+- 리눅스 데몬 v0.1 (Go): `bulchimbeon run|status|doctor|config`, systemd 사용자 유닛, tar.gz·.deb 릴리스 파일 (amd64·arm64). 잠자기·화면 꺼짐을 logind inhibitor 두 개로 막고, SSH·헤드리스 기기용 polkit 규칙은 안내만 한다 (#16)
 - 엔진 골든 픽스처 `testdata/engine`: Swift Core 와 Go 엔진이 같은 파일을 돌려 동작을 OS 간에 고정
 - 1.0 호환성 약속 문서화 (`docs/compatibility.md`): 설정 키, 실행 인자, 근무일지 형식. 테스트로 고정 (#7)
 - 설정 키·허용 값을 Core `SettingsKey` 로 모음 (동작 변화 없음)

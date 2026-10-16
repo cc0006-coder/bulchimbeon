@@ -4,7 +4,6 @@
 //
 //	bulchimbeon run        agent watch daemon (the systemd user unit runs this)
 //	bulchimbeon status     is the machine being kept awake, and why
-//	bulchimbeon diagnose   which agent processes are detected, and why
 //	bulchimbeon doctor     check systemd, logind and polkit on this machine
 //	bulchimbeon config     show or change settings
 package main
@@ -52,8 +51,6 @@ func cli(args []string, stdout, stderr io.Writer) int {
 		return runCmd(rest, stdout, stderr)
 	case "status":
 		return statusCmd(rest, stdout, stderr)
-	case "diagnose", "--diagnose":
-		return diagnoseCmd(rest, stdout, stderr)
 	case "doctor":
 		return doctorCmd(rest, stdout, stderr)
 	case "config":
@@ -77,7 +74,6 @@ func usage(w io.Writer, lang engine.Lang) {
 
   run        에이전트 근무 데몬 (systemd 사용자 서비스가 실행)
   status     지금 깨워 두는 중인지, 왜 그런지
-  diagnose   어떤 에이전트 프로세스가 왜 감지되는지
   doctor     systemd·logind·polkit 점검 (SSH·헤드리스용 polkit 규칙 안내)
   config     설정 보기·바꾸기: config [list | get <키> | set <키> <값>... | unset <키>]
   version    버전
@@ -89,7 +85,6 @@ Usage: bulchimbeon <command> [--lang ko|en]
 
   run        agent watch daemon (the systemd user service runs this)
   status     whether the machine is being kept awake, and why
-  diagnose   which agent processes are detected, and why
   doctor     check systemd, logind and polkit (and the polkit rule for SSH or headless use)
   config     show or change settings: config [list | get <key> | set <key> <value>... | unset <key>]
   version    print the version
@@ -220,29 +215,6 @@ func statusCmd(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-func diagnoseCmd(args []string, stdout, stderr io.Writer) int {
-	f := newFlags("diagnose", stderr)
-	if rest, err := f.parse(args); err != nil || len(rest) > 0 {
-		return exitUsage
-	}
-	p, _, err := paths()
-	if err != nil {
-		fmt.Fprintln(stderr, "bulchimbeon: "+err.Error())
-		return exitFail
-	}
-	plat, err := newPlatform()
-	if err != nil {
-		fmt.Fprintln(stderr, "bulchimbeon: "+err.Error())
-		return exitFail
-	}
-	s := loadSettings(p, stderr)
-	if err := daemon.Diagnose(stdout, plat, s, f.langFor(s), os.Getuid(), 3*time.Second, time.Sleep); err != nil {
-		fmt.Fprintln(stderr, "bulchimbeon: "+err.Error())
-		return exitFail
-	}
-	return exitOK
-}
-
 func doctorCmd(args []string, stdout, stderr io.Writer) int {
 	f := newFlags("doctor", stderr)
 	if rest, err := f.parse(args); err != nil || len(rest) > 0 {
@@ -328,8 +300,6 @@ func show(s settings.Settings, key string) string {
 		return strings.Join(s.CustomAgents, " ")
 	case settings.KeyLanguage:
 		return s.Language
-	case engine.KeySimulateHeat:
-		return s.SimulateHeat
 	}
 	return ""
 }

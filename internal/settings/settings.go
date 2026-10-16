@@ -31,7 +31,6 @@ type Settings struct {
 	AgentWatchCountsIdle bool     `json:"agentWatchCountsIdle"`
 	CustomAgents         []string `json:"customAgents"`
 	Language             string   `json:"language"`
-	SimulateHeat         string   `json:"simulateHeat,omitempty"`
 }
 
 // Defaults are the documented defaults.
@@ -42,10 +41,10 @@ func Defaults() Settings {
 
 // Keys that `config set` accepts, in display order.
 var Keys = []string{engine.KeyDutyMode, engine.KeyBatteryFloor, engine.KeyAgentGraceMinutes,
-	engine.KeyAgentWatchCountsIdle, engine.KeyCustomAgents, KeyLanguage, engine.KeySimulateHeat}
+	engine.KeyAgentWatchCountsIdle, engine.KeyCustomAgents, KeyLanguage}
 
 // macOSOnly are public keys with no meaning outside the macOS app.
-var macOSOnly = []string{engine.KeyPatrolEnabled, engine.KeyPatrolScale}
+var macOSOnly = []string{engine.KeyPatrolEnabled, engine.KeyPatrolScale, engine.KeyUniformTheme}
 
 // Load reads the settings file. A missing file means defaults. Problems lists stored
 // values that were ignored.
@@ -106,16 +105,7 @@ func apply(s *Settings, key string, value json.RawMessage) error {
 			return errors.New("expected system, ko or en")
 		}
 		s.Language = v
-	case engine.KeySimulateHeat:
-		var v string
-		if json.Unmarshal(value, &v) != nil {
-			return errors.New("expected a heat level name")
-		}
-		if _, ok := engine.ParseHeatLevel(v); !ok {
-			return errors.New("expected normal, caution, advisory or alert")
-		}
-		s.SimulateHeat = v
-	case engine.KeyPatrolEnabled, engine.KeyPatrolScale:
+	case engine.KeyPatrolEnabled, engine.KeyPatrolScale, engine.KeyUniformTheme:
 		// macOS only; kept in the file, ignored here
 	default:
 		return errors.New("unknown key")

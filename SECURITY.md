@@ -31,7 +31,7 @@
 
 | 자산 / 행위 | 위협 | 대응 |
 |-------------|------|------|
-| 다른 프로세스 정보 (`/proc`) | 명령줄·환경변수 속 API 키 노출, 다른 사용자 프로세스 열람 | `/proc/<pid>` 소유자가 **현재 사용자(UID)** 인 프로세스만. 일반 프로세스는 실행 파일 경로 + `argv[0]` 만, node·bun·deno 는 앞 8개, 에이전트 후보만 앞 64개. `environ` 은 읽지 않고 `cmdline` 버퍼는 파싱 후 0 으로 지움. 상태 파일·근무일지·`status` 에 인자 없음. `diagnose` 는 에이전트의 실행 파일·작업 폴더만 보여줌 |
+| 다른 프로세스 정보 (`/proc`) | 명령줄·환경변수 속 API 키 노출, 다른 사용자 프로세스 열람 | `/proc/<pid>` 소유자가 **현재 사용자(UID)** 인 프로세스만. 일반 프로세스는 실행 파일 경로 + `argv[0]` 만, node·bun·deno 는 앞 8개, 에이전트 후보만 앞 64개. `environ` 은 읽지 않고 `cmdline` 버퍼는 파싱 후 0 으로 지움. 상태 파일·근무일지·`status` 에 인자 없음 |
 | 외부 명령 (`systemd-inhibit`, `busctl`, `systemctl`, `loginctl`) | `PATH` 하이재킹, 셸 인젝션 | `/usr/bin` 등 고정 경로에서만 찾고, 셸 없이 인자 배열로 실행, 환경은 `PATH`=시스템 경로·`LANG=C` 만 (`systemctl --user` 조회에만 `XDG_RUNTIME_DIR` 추가). `--who`·`--why` 는 앱 상수 |
 | 잠자기 잠금 (logind inhibitor) | 데몬이 죽은 뒤 잠금이 남아 영원히 잠들지 못함 | 잠금을 쥔 `systemd-inhibit` 자식의 stdin 을 데몬만 가진 파이프에 묶음: 데몬이 `kill -9` 로 죽어도 0.3초 안에 해제 (실측). 서비스는 `KillMode=control-group`. 매 점검마다 logind 목록에서 실존 확인, 사라지면 재획득·기록 |
 | polkit 규칙 (SSH·헤드리스용, 선택) | 권한 상승, 넓은 권한 부여 | 불침번은 root 로 아무것도 실행하지 않는다. 규칙은 `doctor`·README 에 **출력만** 하며, 한 사용자에게 `org.freedesktop.login1.inhibit-block-sleep` 하나만 허용. 사용자 이름은 `^[a-z_][a-z0-9_-]{0,31}$` 일 때만 끼워 넣고, 아니면 자리표시자 |

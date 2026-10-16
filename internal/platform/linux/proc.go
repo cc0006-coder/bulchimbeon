@@ -108,9 +108,6 @@ func (s *ProcScanner) snapshot(pid int32, kinds []engine.AgentKind) (engine.Proc
 	snap := engine.ProcessSnapshot{PID: pid, PPID: ppid, ExecutablePath: exe}
 	if engine.IsCandidate(exe, argv0, kinds) {
 		args = ParseCmdline(raw, engine.ArgsCandidate)
-		if cwd, err := os.Readlink(filepath.Join(dir, "cwd")); err == nil {
-			snap.CWD = StripDeleted(cwd)
-		}
 	}
 	snap.Arguments = args
 	return snap, ticks, true

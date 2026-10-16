@@ -16,7 +16,7 @@ machine, the battery or heat rules, the duty-log line or the private's lines mus
   update the fixture so `swift test` passes, then make the Go port pass the same file. Never edit a
   fixture only to make the Go port pass.
 - Edit the JSON by hand. Keep cases small and give each a `name` that says what it pins.
-- Add a measured process shape (from `ps`, `/proc` or `bulchimbeon diagnose`) when you add an agent,
+- Add a measured process shape (from `ps`, `/proc`, `--diagnose` or `bulchimbeon status`) when you add an agent,
   plus one false-positive case, the same way `CONTRIBUTING.md` asks for the Swift tests.
 - Times are seconds. Scenario times are relative to `t0`; CPU-history times are relative to
   1,000,000 s after the Unix epoch.

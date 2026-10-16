@@ -49,7 +49,7 @@ and nothing else; it builds and tests on any OS, and its Linux backend tests run
 
 ```bash
 go test ./...                     # engine, shared fixtures, Linux backend, daemon, CLI
-go build ./cmd/bulchimbeon        # then ./bulchimbeon status, diagnose, doctor
+go build ./cmd/bulchimbeon        # then ./bulchimbeon status, doctor
 ./scripts/install-linux.sh ./bulchimbeon   # install it as your systemd user service (Linux)
 BULCHIMBEON_TEST_LOGIND=1 go test ./internal/platform/linux/   # also take a real logind lock
 ```
@@ -106,8 +106,8 @@ These match the checklist in the PR template.
    one false-positive case.
 4. Add the same kind to `BuiltIn` in `internal/engine/catalog.go` and to `builtIn` and `match` in
    `testdata/engine/catalog.json`, so the Linux daemon detects it too (`go test ./...`).
-5. Check with `--diagnose` (macOS) or `bulchimbeon diagnose` (Linux) that it's really detected, and paste that output
-   into the PR.
+5. Check with `--diagnose` (macOS) or `bulchimbeon status` (Linux, which lists the detected agents) that it's really
+   detected, and paste that output into the PR.
 
 Can't wait for a release? Users can add an agent locally with
 `defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>` (macOS) or
@@ -210,7 +210,7 @@ Xcode 가 설치돼 있으면 `swift test` 만으로도 됩니다. `make test` �
 
 ```bash
 go test ./...                     # 엔진, 공유 픽스처, 리눅스 백엔드, 데몬, CLI
-go build ./cmd/bulchimbeon        # 그다음 ./bulchimbeon status, diagnose, doctor
+go build ./cmd/bulchimbeon        # 그다음 ./bulchimbeon status, doctor
 ./scripts/install-linux.sh ./bulchimbeon   # systemd 사용자 서비스로 설치 (리눅스)
 BULCHIMBEON_TEST_LOGIND=1 go test ./internal/platform/linux/   # 실제 logind 잠금까지 시험
 ```
@@ -266,7 +266,7 @@ PR 템플릿의 체크리스트와 같습니다.
 3. `Tests/BulchimbeonCoreTests/CoreTests.swift` 에 **실측한 프로세스 모습 그대로** 테스트를 추가합니다. 오탐 케이스도 하나 넣어주세요.
 4. 같은 종류를 `internal/engine/catalog.go` 의 `BuiltIn` 과 `testdata/engine/catalog.json` 의 `builtIn`·`match` 에도 추가해
    리눅스 데몬도 감지하게 합니다 (`go test ./...`).
-5. `--diagnose`(macOS) 또는 `bulchimbeon diagnose`(리눅스)로 실제로 잡히는지 확인하고, 그 출력을 PR 에 붙여주세요.
+5. `--diagnose`(macOS) 또는 `bulchimbeon status`(리눅스, 감지된 에이전트를 보여줌)로 실제로 잡히는지 확인하고, 그 출력을 PR 에 붙여주세요.
 
 릴리스를 기다리기 어렵다면 사용자가 직접 추가할 수도 있습니다:
 `defaults write io.github.s3onghyun.bulchimbeon customAgents -array <name>` (macOS),

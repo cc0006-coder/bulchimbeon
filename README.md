@@ -198,7 +198,6 @@ To keep the service running while you are logged out, run `loginctl enable-linge
 
 ```bash
 bulchimbeon status                       # on duty or not, and why
-bulchimbeon diagnose                     # which agent processes are detected, and why
 bulchimbeon doctor                       # check systemd, logind and polkit on this machine
 bulchimbeon config set agentGraceMinutes 10
 bulchimbeon config set customAgents goose amp

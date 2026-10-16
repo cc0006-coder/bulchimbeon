@@ -261,9 +261,6 @@ func powerLine(st *State, t func(string, string) string) string {
 		heat = fmt.Sprintf(t("온도 %s (%s %.0f °C, 위험 %.0f °C)", "heat: %s (%s %.0f °C, critical %.0f °C)"),
 			heatName(st.Heat, t), r.Sensor, r.Celsius, r.CritCelsius)
 	}
-	if st.Settings.SimulateHeat != "" {
-		heat += t(" · 시험값 simulateHeat=", " · simulateHeat=") + st.Settings.SimulateHeat
-	}
 	return battery + " · " + heat + " · " + t("덮개: 처리 안 함 (닫으면 잠듦)", "lid: not handled (closing it still suspends)")
 }
 

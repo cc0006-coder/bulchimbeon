@@ -257,12 +257,18 @@ func TestSettingsApplyLive(t *testing.T) {
 	if !r.d.Engine().OnDuty() {
 		t.Fatal("agentWatchCountsIdle=true should count an open session")
 	}
-	settings.Set(r.paths.Settings, "simulateHeat", []string{"alert"})
+}
+
+func TestHeatAlertRestsAndResumes(t *testing.T) {
+	r := newRig(t)
+	r.session(100, true)
+	r.run(10 * time.Second)
+	r.thermal.r.Level = engine.HeatAlert
 	r.run(5 * time.Second)
 	if !r.d.Engine().Resting() || r.inh.wanted {
-		t.Fatal("simulateHeat=alert should start combat rest")
+		t.Fatal("a heat alert should start combat rest")
 	}
-	settings.Unset(r.paths.Settings, "simulateHeat")
+	r.thermal.r.Level = engine.HeatNormal
 	r.run(3 * time.Minute)
 	if r.d.Engine().Resting() || !r.d.Engine().OnDuty() {
 		t.Fatal("did not resume after cooling down")
@@ -352,23 +358,6 @@ func TestResolveLang(t *testing.T) {
 	s.Language = "en"
 	if ResolveLang(nil, s, env) != engine.EN || ResolveLang(&ko, s, env) != engine.KO {
 		t.Error("setting and override")
-	}
-}
-
-func TestDiagnoseNeverPrintsArguments(t *testing.T) {
-	procs := &fakeProcs{cpu: map[int32]uint64{}, rate: map[int32]uint64{100: 300_000_000}, procs: []engine.ProcessSnapshot{
-		{PID: 100, PPID: 1, ExecutablePath: claudeExe, Arguments: []string{"claude", "--api-key=sk-secret"}, CWD: "/home/me/work"},
-		{PID: 101, PPID: 1, ExecutablePath: "/usr/bin/bash", Arguments: []string{"bash"}},
-	}}
-	var out bytes.Buffer
-	p := platform.Platform{Processes: procs, Holders: &fakeHolders{}}
-	if err := Diagnose(&out, p, settings.Defaults(), engine.EN, 1000, 3*time.Second, func(time.Duration) {}); err != nil {
-		t.Fatal(err)
-	}
-	text := out.String()
-	if !strings.Contains(text, "✔ Claude Code  pid 100  matched by: command (argv[0])  · working (tree CPU 10.0%)") ||
-		!strings.Contains(text, "cwd: /home/me/work") || strings.Contains(text, "sk-secret") || strings.Contains(text, "bash") {
-		t.Errorf("diagnose:\n%s", text)
 	}
 }
 

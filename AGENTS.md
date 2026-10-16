@@ -33,7 +33,7 @@ Go 1.27 or newer, standard library only (no `require` in `go.mod`).
 
 ```sh
 go vet ./... && go test ./...       # what the CI job `go (linux)` runs, plus gofmt
-go build ./cmd/bulchimbeon          # run | status | diagnose | doctor | config
+go build ./cmd/bulchimbeon          # run | status | doctor | config
 ./scripts/package-linux.sh <version> <amd64|arm64>   # tar.gz and .deb into dist/linux
 ```
 

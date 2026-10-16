@@ -38,7 +38,7 @@ func TestProcScannerRecordedTree(t *testing.T) {
 
 	claude := byPID[794081]
 	if claude.PPID != 790001 || claude.ExecutablePath != "/home/me/.local/share/claude/versions/2.1.301" ||
-		claude.CWD != "/home/me/work/bulchimbeon" || !slices.Equal(claude.Arguments, []string{"claude", "--dangerously-skip-permissions"}) {
+		claude.CWD != "" || !slices.Equal(claude.Arguments, []string{"claude", "--dangerously-skip-permissions"}) {
 		t.Errorf("claude = %+v", claude)
 	}
 	if got := scan.CPUTimes[794081]; got != (51234+8766)*10_000_000 {
@@ -54,7 +54,7 @@ func TestProcScannerRecordedTree(t *testing.T) {
 		t.Errorf("node = %+v", node)
 	}
 	// a replaced executable still matches by name
-	if codex := byPID[906515]; codex.ExecutablePath != "/home/me/.local/bin/codex" || codex.CWD != "/home/me/work/old" {
+	if codex := byPID[906515]; codex.ExecutablePath != "/home/me/.local/bin/codex" {
 		t.Errorf("codex = %+v", codex)
 	}
 	// a command name with spaces and parentheses

@@ -29,7 +29,6 @@ func TestSetUnsetRoundTrip(t *testing.T) {
 		{"customAgents", []string{"goose", "amp"}},
 		{"language", []string{"ko"}},
 		{"dutyMode", []string{"system"}},
-		{"simulateHeat", []string{"advisory"}},
 	} {
 		if err := Set(path, c.key, c.values); err != nil {
 			t.Fatalf("Set %s: %v", c.key, err)
@@ -37,7 +36,7 @@ func TestSetUnsetRoundTrip(t *testing.T) {
 	}
 	s, problems, err := Load(path)
 	want := Settings{DutyMode: "system", BatteryFloor: 0, AgentGraceMinutes: 10, AgentWatchCountsIdle: true,
-		CustomAgents: []string{"goose", "amp"}, Language: "ko", SimulateHeat: "advisory"}
+		CustomAgents: []string{"goose", "amp"}, Language: "ko"}
 	if err != nil || len(problems) != 0 || !reflect.DeepEqual(s, want) {
 		t.Fatalf("Load = %+v, %v, %v", s, problems, err)
 	}
@@ -77,6 +76,8 @@ func TestSetRejectsValuesOutsideThePromise(t *testing.T) {
 		{"language", []string{"ja"}, "system, ko or en"},
 		{"dutyMode", []string{"hybrid"}, "display, system or lid"},
 		{"patrolScale", []string{"2"}, "macOS app"},
+		{"uniformTheme", []string{"navy"}, "macOS app"},
+		{"simulateHeat", []string{"alert"}, "unknown key"},
 		{"nope", []string{"1"}, "unknown key"},
 		{"batteryFloor", []string{"10", "20"}, "exactly one"},
 	} {
@@ -93,7 +94,7 @@ func TestSetRejectsValuesOutsideThePromise(t *testing.T) {
 func TestHandEditedFileFallsBackPerKey(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	os.WriteFile(path, []byte(`{"agentGraceMinutes": 7, "batteryFloor": 10, "customAgents": ["goose", "../x"],
-		"patrolEnabled": false, "somethingElse": 1}`), 0o600)
+		"patrolEnabled": false, "uniformTheme": "navy", "simulateHeat": "alert", "somethingElse": 1}`), 0o600)
 	s, problems, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +102,8 @@ func TestHandEditedFileFallsBackPerKey(t *testing.T) {
 	if s.AgentGraceMinutes != 5 || s.BatteryFloor != 10 || !reflect.DeepEqual(s.CustomAgents, []string{"goose", "../x"}) {
 		t.Errorf("settings = %+v", s)
 	}
-	if len(problems) != 2 || !strings.HasPrefix(problems[0], "agentGraceMinutes") || !strings.HasPrefix(problems[1], "somethingElse") {
+	if len(problems) != 3 || !strings.HasPrefix(problems[0], "agentGraceMinutes") || !strings.HasPrefix(problems[1], "simulateHeat") ||
+		!strings.HasPrefix(problems[2], "somethingElse") {
 		t.Errorf("problems = %q", problems)
 	}
 	// unknown keys survive a `config set`

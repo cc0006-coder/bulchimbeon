@@ -145,10 +145,6 @@ func (d *Daemon) Tick() {
 
 	d.battery, _ = d.cfg.Platform.Battery.Battery()
 	d.thermal = d.cfg.Platform.Thermal.Thermal()
-	heat := d.thermal.Level
-	if simulated, ok := engine.ParseHeatLevel(d.settings.SimulateHeat); ok {
-		heat = simulated
-	}
 
 	// The daemon always keeps an agent watch. A battery stand-down ends the order (as on
 	// macOS, where the user starts it again from the menu); here it re-arms once the
@@ -161,7 +157,7 @@ func (d *Daemon) Tick() {
 	if d.engine.OnDuty() {
 		lost = d.cfg.Platform.Inhibitor.Refresh()
 	}
-	d.run(d.engine.Tick(engine.Observation{Now: now, Battery: d.battery, Heat: heat,
+	d.run(d.engine.Tick(engine.Observation{Now: now, Battery: d.battery, Heat: d.thermal.Level,
 		AgentsOpen: open, AgentsBusy: busy, AssertionLost: lost}), now)
 
 	// A block polkit refused may be allowed later (a rule was added): try again now and then.

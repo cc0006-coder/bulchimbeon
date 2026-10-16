@@ -44,7 +44,7 @@ defaults write io.github.s3onghyun.bulchimbeon agentGraceMinutes -int 10
 | 바꾸기 | `bulchimbeon config set <키> <값>...` · `config get <키>` · `config unset <키>` · `config list` |
 | 적용되는 키 | `batteryFloor`, `agentGraceMinutes`, `agentWatchCountsIdle`, `customAgents`. 데몬이 5초마다 다시 읽는다 |
 | `dutyMode` | 저장은 되지만 리눅스 v0.1 은 항상 `system` 으로 근무한다 |
-| `patrolEnabled`, `patrolScale` | macOS 전용. `config set` 이 거부한다 |
+| `patrolEnabled`, `patrolScale`, `uniformTheme` | macOS 전용. `config set` 이 거부한다 |
 | `language` | 리눅스 전용 (`AppleLanguages` 대신): `system`(기본, `LANGUAGE`·`LC_ALL`·`LC_MESSAGES`·`LANG` 을 따름) · `ko` · `en` |
 
 ```bash
@@ -81,11 +81,10 @@ bulchimbeon config set agentGraceMinutes 10
 |------|------|
 | `bulchimbeon run` | 에이전트 근무 데몬 (systemd 사용자 유닛이 실행). `--agent-watch` 도 받는다 (같은 뜻) |
 | `bulchimbeon status` | 지금 깨워 두는 중인지와 이유. 데몬이 돌지 않으면 종료 코드 `3` |
-| `bulchimbeon diagnose` | `--diagnose` 와 같은 감지 진단 (`bulchimbeon --diagnose` 도 받는다) |
 | `bulchimbeon doctor` | systemd·logind·polkit 점검 |
 | `bulchimbeon config` | 위 리눅스 설정 |
 
-`status`·`diagnose`·`doctor` 의 **출력 내용은 사람이 읽는 용도이며 형식은 약속하지 않는다.**
+`status`·`doctor` 의 **출력 내용은 사람이 읽는 용도이며 형식은 약속하지 않는다.**
 환경 변수 `BULCHIMBEON_DEBUG=1` 의 출력도 디버깅용이라 형식을 약속하지 않는다.
 
 ## 3. 근무일지

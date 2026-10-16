@@ -1,5 +1,5 @@
 {
-  "publicKeys": ["dutyMode", "batteryFloor", "agentGraceMinutes", "agentWatchCountsIdle", "customAgents", "patrolEnabled", "patrolScale"],
+  "publicKeys": ["dutyMode", "batteryFloor", "agentGraceMinutes", "agentWatchCountsIdle", "customAgents", "patrolEnabled", "patrolScale", "uniformTheme"],
   "internalKeys": ["dutyOrder", "dutyOrderUntil", "lidEngagedByUs", "simulateHeat"],
   "dutyModes": ["display", "system", "lid"],
   "batteryFloors": [10, 20, 30, 0],
@@ -8,6 +8,7 @@
   "defaultGraceMinutes": 5,
   "patrolScales": [2, 3],
   "defaultPatrolScale": 2,
+  "defaultUniformTheme": "default",
   "maxCustomAgents": 16,
   "launchArguments": ["--agent-watch", "--diagnose"],
   "engineDefaults": {"mode": "system", "batteryFloor": 20, "countIdleSessions": false, "graceMinutes": 5}

@@ -224,7 +224,6 @@ systemctl --user enable --now bulchimbeon
 
 ```bash
 bulchimbeon status                       # 지금 근무 중인지, 왜 그런지
-bulchimbeon diagnose                     # 어떤 에이전트 프로세스가 왜 감지되는지
 bulchimbeon doctor                       # systemd·logind·polkit 점검
 bulchimbeon config set agentGraceMinutes 10
 bulchimbeon config set customAgents goose amp

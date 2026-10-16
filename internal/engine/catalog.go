@@ -35,7 +35,7 @@ type ProcessSnapshot struct {
 	// Arguments holds argv[0] only, or the first 8 entries for script runners and the
 	// first 64 for agent candidates. It is used in memory for matching and never stored.
 	Arguments []string
-	// CWD is collected for agent candidates only, for diagnostic output.
+	// CWD is collected on macOS for agent candidates only, for `--diagnose` output.
 	CWD string
 }
 
