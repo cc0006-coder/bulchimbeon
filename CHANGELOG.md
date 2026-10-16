@@ -8,6 +8,7 @@
 - 1.0 호환성 약속 문서화 (`docs/compatibility.md`): 설정 키, 실행 인자, 근무일지 형식. 테스트로 고정 (#7)
 - 설정 키·허용 값을 Core `SettingsKey` 로 모음 (동작 변화 없음)
 - README: 이등병 어록, 비슷한 앱(Adrafinil)과 비교
+- README 영어 우선 (`README.md` 영어, 한국어는 `README.ko.md`), CONTRIBUTING 영·한 전체판, 이슈 양식(기능 제안·번역 수정 추가)·PR 템플릿 영어 우선
 
 ## 0.6.9 — 2026-10-14
 

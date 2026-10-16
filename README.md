@@ -1,215 +1,230 @@
-# 🪖 불침번 (Bulchimbeon)
+# 🪖 Bulchimbeon (불침번)
 
 > **Your Mac's night-watch soldier.**
-> 내가 자는 동안 AI 에이전트 곁에서 맥을 깨워두고, 일이 끝나면 "근무 교대합니다!" 하고 재워주는 메뉴바 이등병.
+> A menu bar app that keeps your Mac awake **only while your AI coding agents are actually working**,
+> then salutes *"Shift over!"* and lets it sleep.
 >
-> **hook도, 데몬도, 설치되는 root 도우미도 없이 앱 하나로. macOS 13부터.**
+> **No hooks, no daemon, no installed root helper. One app. macOS 13 and later.**
 
-> 🌐 [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
+*Bulchimbeon* (불침번) is the night-watch duty in the Korean army: someone stays up all night so everyone else can sleep.
+A pixel-art private takes that shift for your Mac.
 
-![불침번 데모](docs/media/demo.gif)
+> 🌐 [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
-| 상태 | 이등병 | 언제 |
-|------|--------|------|
-| 💤 취침 | 방탄모 쓰고 꾸벅, zzz | 근무 없음 |
-| 👀 근무 대기 | 두리번두리번 | 에이전트 출근 감시 중 |
-| 🪖 근무 중 | 손전등 깜빡이며 경계 | 맥이 잠들지 않음 |
-| 🫡 근무 교대 | `^ ^` 충성! 경례 | 에이전트 작업 끝 / 근무 시간 종료 |
-| 🥵 전투휴식 | 땀 뻘뻘, 눈 감고 열 식히기 | 폭염 경보 |
+![Bulchimbeon demo](docs/media/demo.gif)
 
-### 🚶 순찰 모드
+| State | The private | When |
+|-------|-------------|------|
+| 💤 Off duty | Dozing in his helmet, zzz | Nothing to guard |
+| 👀 Standing by | Looking around | Waiting for an agent to clock in |
+| 🪖 On duty | Flashlight on, on patrol | The Mac won't sleep |
+| 🫡 Shift over | `^ ^` salute | Agents went quiet / watch time is up |
+| 🥵 Combat rest | Sweating, eyes closed | The Mac is overheating |
 
-<img src="docs/sprites-preview.png" width="360" align="right" alt="스프라이트">
+### 🚶 Patrol mode
 
-메뉴바 바로 아래, 화면 맨 위를 이등병이 손전등을 들고 좌우로 순찰한다.
-근무 대기 중엔 오른쪽 구석에서 두리번, 교대 땐 그 자리에서 경례하며 말풍선으로 "근무 교대합니다! 🫡". 취침 중엔 퇴근(숨김).
-클릭은 모두 통과하고, 마우스가 다가오면 반투명해져 비켜준다. 메뉴에서 끄기·크기(2배/3배) 조절.
-전체화면 앱(발표·화면 공유·영상) 위에는 나타나지 않는다.
+<img src="docs/sprites-preview.png" width="360" align="right" alt="Sprites">
 
-### 🗣️ 이등병 어록
+The private patrols just under your menu bar with a flashlight. While standing by he looks around in the corner;
+at shift change he salutes with a speech bubble. Clicks pass straight through, he fades when your pointer comes close,
+and he stays out of full-screen apps (presentations, screen sharing, video). Size 2× / 3×, or turn him off.
 
-| 언제 | 이등병 |
-|------|--------|
-| 근무 중 | "졸지 않겠습니다! …아마도요." · "편히 주무십시오. 제가 지키겠습니다!" |
-| 대기 중 | "총 닦으며 대기 중…" |
-| 맥이 뜨거울 때 | "폭염 주의보! 물 마시는 중 🥵" → "전투휴식! 열 식히는 중 🧊" |
-| 배터리 부족 | "당직사관님께 보고드립니다 🔋 배터리 15%… 기력이 다해 근무 철수합니다." |
-| 잠자기 방지가 풀렸을 때 | "근무지 이탈 아닙니다! 복귀! 🫡" |
-| 자리 비웠다 돌아오면 | "인수인계 드리겠습니다! 📋" |
+### 🗣️ The private's lines
 
-## 왜 만들었나
+| When | He says |
+|------|---------|
+| On watch | "Won't doze off! …probably." · "Sleep tight. I've got this!" |
+| Standing by | "Polishing my rifle… standing by." |
+| Mac heating up | "Heat advisory! Hydrating 🥵" → "Combat rest! Cooling down 🧊" |
+| Low battery | "Reporting to the duty officer 🔋 Battery at 15%… out of strength, standing down." |
+| Sleep block lost | "Not AWOL! Back on post! 🫡" |
+| You come back | "Handover report! 📋" |
 
-AI 에이전트를 돌려놓고 자려면 이렇게 했다.
+## Why
+
+To leave an agent running overnight I used to do this:
 
 ```bash
-caffeinate -d                 # 끄는 걸 잊는다
-sudo pmset disablesleep 1     # 되돌리는 걸 잊으면 배터리 0%
+caffeinate -d                 # ...and forget to turn it off
+sudo pmset disablesleep 1     # ...and forget to turn it back on → battery at 0%
 ```
 
-불침번은 **에이전트가 떠 있는 동안만** 깨어 있고, 끝나면 알아서 근무를 교대한다.
+Bulchimbeon stays awake **only while an agent is working** and hands the Mac back to normal sleep when it's done.
 
-## 기능
+## Features
 
-| 기능 | 설명 |
-|------|------|
-| 🤖 에이전트 근무 (자동 교대) | Claude Code · Codex · Gemini CLI · Cursor · Copilot CLI · Aider · OpenCode 감지 (+사용자 지정). **열려만 있는 세션은 세지 않고 실제로 일할 때만 근무**, 조용해지고 5분 뒤 교대 → 있으면 근무 투입, 모두 끝나면 교대 알림 |
-| 🪖 근무 서기 | 30분 / 1시간 / 2시간 / 4시간 / 무기한 |
-| 근무 형태 | 화면 켜둠 (`caffeinate -d`) · 화면은 꺼져도 맥은 깨어 있음 (`caffeinate -i`) · **덮개 닫아도 깨어 있음** (관리자 권한) |
-| 🔋 배터리 철수 | 배터리 사용 중 잔량이 기준(기본 20%) 이하면 강제 철수 |
-| ⚠️ 덮개 안전장치 | 근무 종료·앱 종료 시 `disablesleep` 원복, 비정상 종료 후 재실행하면 복구 버튼 |
-| 🌡️ 폭염 주의보 → 🔥 전투휴식 | 맥이 뜨거워지면 경고, 아주 뜨거우면 근무를 잠시 멈춰 식히고 **열이 내리면 자동 복귀** (덮개 닫고 가방에 넣는 사고 방지) |
-| ⚠️ 근무지 이탈 감지 | 잠자기 방지가 어떤 이유로든 풀려 있으면 즉시 재투입 |
-| 🕵️ 당직 감시병 | 덮개 모드 중 앱이 강제 종료돼도 5초 안에 원래 잠자기 설정으로 복구 |
-| 📋 당직 근무 인수인계 | 10분 이상 자리를 비웠다 돌아오면 그사이 근무 내역 보고 ("근무 교대 1회 · 폭염 1회 … 이상입니다! 🫡") |
-| 🖥️ 다른 앱 표시 | 이 앱 말고 잠자기·화면 꺼짐을 막는 앱도 메뉴에 표시 (예: "Vivaldi (영상)") |
-| 🔁 근무 유지 | 앱 재시작·업데이트·재부팅 후에도 남은 근무 시간 그대로 복귀 (덮개 근무는 보안상 시스템 근무로 복귀 후 재승인 안내) |
-| 🌐 한국어·영어 | 기본은 시스템 언어. 메뉴 **언어 / Language** 에서 따로 고를 수 있음 (시스템은 영어인데 앱은 한국어로 등) |
-| 📒 근무일지 | `~/Library/Application Support/Bulchimbeon/duty-log.txt` |
+| Feature | What it does |
+|---------|--------------|
+| 🤖 Agent watch | Detects Claude Code, Codex, Gemini CLI, Cursor Agent, Copilot CLI, Aider, OpenCode (plus your own). **Only counts agents that are actually working**, not sessions that are merely open. Clocks in when one starts working and hands over 5 minutes (adjustable) after everything goes quiet |
+| 🪖 Timed watch | 30 min / 1 h / 2 h / 4 h / indefinitely |
+| Watch modes | Keep display on (`caffeinate -d`) · Display may sleep, Mac stays awake (`caffeinate -i`) · **Stay awake with the lid closed** (admin) |
+| 🔋 Battery stand-down | Stands down when running on battery below your threshold (default 20%) |
+| ⚠️ Lid safety net | Restores normal lid sleep (`disablesleep` back to off) when the watch ends or the app quits; after a crash, the next launch offers **Restore lid sleep** in the menu |
+| 🌡️ Heat advisory → 🔥 combat rest | Warns when the Mac heats up; when it gets critical, pauses the watch to cool down and **resumes automatically** once it cools (no more cooking a closed Mac in a bag) |
+| ⚠️ Abandoned-post check | If the sleep block disappears for any reason, it is re-engaged immediately |
+| 🕵️ Watchdog | In lid-closed mode, the original sleep setting is restored within 5 s even if the app is force-quit |
+| 📋 Night-watch handover | Come back after 10+ minutes away and get a report of what happened while you were gone |
+| 🔁 Survives restarts | Remaining watch time carries over app restarts, updates and reboots (for security, a lid-closed watch comes back as a system watch; turn lid mode back on from the menu to re-approve it) |
+| 🖥️ Who else is holding the Mac awake | The menu shows other apps blocking sleep, e.g. "Vivaldi (video)" |
+| 🌐 Korean / English | Follows the system language by default; pick one from **언어 / Language** in the menu |
+| 📒 Duty log | `~/Library/Application Support/Bulchimbeon/duty-log.txt` |
 
-## 비슷한 앱과 비교
+## Compared with similar apps
 
-같은 문제를 푸는 앱으로 [Adrafinil](https://github.com/kageroumado/adrafinil)이 먼저 나와 있다. 접근이 반대라서 맞는 쪽을 고르면 된다. (2026-10 기준)
+[Adrafinil](https://github.com/kageroumado/adrafinil) solves the same problem and came first. The two take opposite
+approaches, so pick the one that fits. (As of October 2026.)
 
-| | 불침번 | Adrafinil |
+| | Bulchimbeon | Adrafinil |
 |---|---|---|
-| 일하는 중인지 아는 법 | **밖에서 관찰** — 에이전트 프로세스의 `caffeinate` 자식·CPU 사용량 | **에이전트가 직접 알림** — hook(프롬프트 제출 시 획득, 응답 끝나면 해제) + 관찰 |
-| 설치하면 바뀌는 것 | **없음.** 앱 하나, 에이전트 설정 파일을 건드리지 않음 | 에이전트 설정에 hook 추가(원클릭 설치·제거), 사용자 데몬, root 도우미 |
-| macOS | **13 이상** | 26.4 이상 |
-| 덮개 닫고 깨어 있기 | 켤 때마다 관리자 암호, 감시병이 원상 복구 보장 | 설치 때 한 번 승인, 이후 암호 없음 |
-| 에이전트가 직접 근무 요청 (긴 빌드 등) | — | CLI·MCP 도구 |
-| 발열 | 덮개 열려 있어도 경고, 너무 뜨거우면 쉬었다가 **식으면 자동 복귀** | 덮개 닫혔을 때 과열 시 강제 해제 |
-| 배포 | ad-hoc 서명 (공증 준비 중), 개인 Homebrew tap | 공증, Homebrew 공식 cask |
+| How it knows an agent is working | **Watches from outside**: the agent's `caffeinate` child and CPU use | **The agent tells it**: hooks (acquire on prompt submit, release when the reply ends) plus observation |
+| What installing changes | **Nothing.** One app; agent config files are never touched | Hooks added to agent configs (one-click install/uninstall), a user daemon, a root helper |
+| macOS | **13 and later** | 26.4 and later |
+| Awake with the lid closed | Admin password each time you turn it on; a watchdog guarantees the setting is restored | Approved once at install, no password afterwards |
+| Agent asks to stay awake (long builds) | — | CLI and MCP tool |
+| Heat | Warns even with the lid open; when it gets too hot, rests and **resumes automatically once cool** | Force-releases on overheating while the lid is closed |
+| Distribution | Ad-hoc signed (notarization planned), personal Homebrew tap | Notarized, official Homebrew cask |
 
-**이럴 땐 Adrafinil**: macOS 26.4 이상이고, hook으로 정확하게 맞물리거나 에이전트가 직접 근무를 요청하게 하고 싶을 때.
-**이럴 땐 불침번**: macOS 13~15를 쓰거나, 에이전트 설정·시스템에 아무것도 설치하고 싶지 않거나, 이등병이 지켜주는 게 좋을 때.
+**Choose Adrafinil** if you're on macOS 26.4+ and want hooks to track turns precisely, or want agents to request
+wake time themselves.
+**Choose Bulchimbeon** if you're on macOS 13–15, don't want anything installed into your agent configs or system,
+or would rather have a private on watch.
 
-## 설치
+## Install
 
 ```bash
 brew install --cask s3onghyun/tap/bulchimbeon
 
-# 업데이트 — tap 을 먼저 새로 받아야 새 버전이 보인다 (Homebrew 자동 갱신 주기가 길다)
+# Update — refresh the tap first, Homebrew's auto-update interval is long
 brew update && brew upgrade --cask bulchimbeon
 ```
 
-또는 [Releases](https://github.com/s3onghyun/bulchimbeon/releases) 에서 zip 을 받아 `/Applications` 로 옮긴다. (macOS 13+, Apple Silicon·Intel universal)
+Or download the zip from [Releases](https://github.com/s3onghyun/bulchimbeon/releases) and move it to `/Applications`.
+macOS 13+, universal (Apple Silicon and Intel).
 
-> **첫 실행:** 아직 Apple 공증(notarization)을 받지 않은 ad-hoc 서명 앱이라 macOS 가 실행을 막는다.
-> 한 번 열기를 시도한 뒤 **시스템 설정 → 개인정보 보호 및 보안 → "그래도 열기"** 를 누르면 된다.
-> (macOS 15 부터는 우클릭 → 열기로 우회되지 않는다.)
-> 공증 전에는 macOS 가 알림 권한을 주지 않아서, 알림이 **"스크립트 편집기"** 이름으로 표시된다.
+> **First launch:** the app is ad-hoc signed and not notarized by Apple yet, so macOS blocks it once.
+> Try to open it, then go to **System Settings → Privacy & Security → "Open Anyway"**.
+> (Since macOS 15, right-click → Open no longer bypasses this.)
+> Until it's notarized, macOS won't grant it notification permission, so notifications show up as **"Script Editor"**.
 
-### 받은 파일 검증 (선택)
+### Verify the download (optional)
 
-릴리스 zip 은 GitHub Actions 에서 빌드되고 빌드 출처 증명(attestation)이 붙는다.
-
-```bash
-gh attestation verify Bulchimbeon-<버전>.zip --repo s3onghyun/bulchimbeon
-shasum -a 256 -c Bulchimbeon-<버전>.zip.sha256
-```
-
-## 개발
-
-Xcode 없이 Command Line Tools 만 있으면 된다.
+Release zips are built only in GitHub Actions and carry a build provenance attestation.
 
 ```bash
-make app        # dist/Bulchimbeon.app 생성 (ad-hoc 서명)
-make run        # 빌드 후 실행
-make test       # 단위·시나리오 테스트
-make icons      # 스프라이트 수정 후 앱 아이콘·미리보기 재생성
-
-# 실행과 동시에 에이전트 근무 시작
-open dist/Bulchimbeon.app --args --agent-watch
-
-# 엔진이 내리는 명령을 stderr 로 출력 (추적용)
-BULCHIMBEON_DEBUG=1 dist/Bulchimbeon.app/Contents/MacOS/Bulchimbeon
+gh attestation verify Bulchimbeon-<version>.zip --repo s3onghyun/bulchimbeon
+shasum -a 256 -c Bulchimbeon-<version>.zip.sha256
 ```
 
-### 릴리스
+## How it works
 
-```bash
-git tag vX.Y.Z && git push origin vX.Y.Z   # → Release 워크플로가 빌드·증명·업로드
-./scripts/bump-cask.sh X.Y.Z               # → 체크섬·출처 증명 검증 후 homebrew-tap 갱신
-```
+| Watch mode | Under the hood |
+|------------|----------------|
+| Keep display on | `IOPMAssertion` `PreventUserIdleDisplaySleep`, same as `caffeinate -d` |
+| Display may sleep (default) | `IOPMAssertion` `PreventUserIdleSystemSleep`, same as `caffeinate -i` |
+| Lid closed | The above plus `pmset -a disablesleep 1`. Closing the lid is a hardware trigger that assertions can't block |
 
-## 동작 원리
+### Agent detection
 
-| 근무 형태 | 내부 동작 |
-|-----------|----------|
-| 화면 켜둠 | `IOPMAssertion` `PreventUserIdleDisplaySleep` — `caffeinate -d` 와 같음 |
-| 화면은 꺼져도 맥은 깨어 있음 | `IOPMAssertion` `PreventUserIdleSystemSleep` — `caffeinate -i` 와 같음 (기본값, 절전) |
-| 덮개 닫아도 깨어 있음 | 위 + `pmset -a disablesleep 1` (덮개 닫힘은 하드웨어 트리거라 assertion 으로 못 막음) |
+Bulchimbeon scans **your own user's** processes with libproc and matches agents by executable name, `argv[0]`,
+install path or script path. Never by substring (Claude Code hooks run `node -e "...'.claude'..."`, which would match).
 
-### 에이전트 감지
+| Install method | What the process looks like | Matched by |
+|----------------|-----------------------------|------------|
+| Claude Code native installer | executable `~/.local/share/claude/versions/2.1.296` (named after the version!) | `argv[0]` = `claude`, or the install path |
+| Homebrew / IDE-bundled binary | `.../claude`, `/opt/homebrew/bin/codex` | executable name |
+| npm global install | `node /opt/homebrew/bin/claude` | script name |
+| npx / package path | `node .../@anthropic-ai/claude-code/cli.js` | package path |
+| bun / deno | `bun .../@google/gemini-cli/...` | package path |
 
-현재 사용자의 프로세스를 libproc 으로 훑어 아래 신호 중 하나라도 맞으면 에이전트로 본다.
-부분 문자열 매칭은 하지 않는다 (Claude Code hook 의 `node -e "...'.claude'..."` 를 오탐하므로).
+Supported: Claude Code · Codex · Gemini CLI · Cursor Agent · Copilot CLI · Aider · OpenCode
 
-| 설치 방식 | 실제 프로세스 모습 | 판별 근거 |
-|-----------|-------------------|-----------|
-| Claude Code 네이티브 설치 | 실행 파일 `~/.local/share/claude/versions/2.1.296` (이름이 버전 번호!) | `argv[0]`=`claude` 또는 설치 경로 |
-| Homebrew·IDE 확장 내장 바이너리 | `.../claude`, `/opt/homebrew/bin/codex` | 실행 파일 이름 |
-| npm 전역 설치 | `node /opt/homebrew/bin/claude` | 스크립트 이름 |
-| npx·패키지 경로 실행 | `node .../@anthropic-ai/claude-code/cli.js` | 패키지 경로 |
-| bun·deno | `bun .../@google/gemini-cli/...` | 패키지 경로 |
+**Only while working.** People keep several Claude Code sessions open, so counting open sessions would never let the
+Mac sleep. An agent counts as working when (you can switch back to counting open sessions in the menu):
 
-지원: Claude Code · Codex · Gemini CLI · Cursor Agent · Copilot CLI · Aider · OpenCode
+| Signal | Why (measured on a real machine) |
+|--------|----------------------------------|
+| It has a `caffeinate` child process | Claude Code spawns `caffeinate -i -t 300` itself, only while it's working |
+| Its process tree uses ≥ 2% CPU averaged over 60 s | Covers tool runs like builds and tests. Idle sessions sit at 0–0.1%. A 5-second sample made periodic background jobs look busy forever |
+| Headless sessions with no tools (`--tools=`) are ignored | Plugins such as claude-mem keep helper sessions running |
 
-**일할 때만 근무.** Claude Code 창을 여러 개 열어 두는 게 보통이라, 열려 있기만 한 세션까지 세면 교대가 영원히 일어나지 않는다.
-그래서 "작업 중"인 에이전트만 센다 (메뉴에서 예전 방식으로 바꿀 수 있음).
-
-| 신호 | 근거 (실측) |
-|------|------------|
-| 자식 프로세스로 `caffeinate` 를 띄움 | Claude Code 는 작업하는 동안만 스스로 `caffeinate -i -t 300` 을 띄운다 |
-| 자신 + 자손 프로세스 CPU 합 ≥ 2% | 빌드·테스트 같은 도구 실행 포함. 입력 대기 세션은 0~0.1% |
-| `--tools=` (도구 없는 헤드리스 세션) 은 제외 | claude-mem 같은 플러그인이 상시 띄워 두는 도우미 세션 |
-
-내 환경에서 제대로 잡히는지 확인하거나, 목록에 없는 에이전트를 추가하려면:
+Check what gets detected on your machine, or add an agent that isn't on the list:
 
 ```bash
 /Applications/Bulchimbeon.app/Contents/MacOS/Bulchimbeon --diagnose
 defaults write io.github.s3onghyun.bulchimbeon customAgents -array goose amp
 ```
 
-Docker 컨테이너나 SSH 원격 서버에서 도는 에이전트는 이 맥의 프로세스가 아니라서 잡히지 않는다.
+Agents running inside Docker or on a remote host over SSH are not processes on this Mac, so they aren't detected.
 
 ```bash
-pmset -g assertions | grep Bulchimbeon   # 근무 중인지 확인
+pmset -g assertions | grep Bulchimbeon   # is it on watch right now?
 ```
 
-스프라이트는 `Sources/BulchimbeonCore/Sprites.swift` 의 ASCII 그리드다. 문자 하나가 픽셀 하나이고,
-메뉴바(1pt=1px)와 1024px 앱 아이콘을 같은 원본에서 벡터 사각형으로 그려 어느 크기에서도 선명하다.
+The duty logic lives in a pure state machine (`DutyEngine`) with no system calls, tested scenario by scenario with a
+fake clock. Design notes, including signals we tried and rejected: [docs/design.md](docs/design.md).
 
-근무 판단은 시스템 호출이 없는 상태 머신(`DutyEngine`)에 있고, 가짜 시계로 시나리오 테스트한다.
-설계 상세 (검토했지만 넣지 않은 신호 포함): [docs/design.md](docs/design.md)
+## Security
 
-## 로드맵
+The app runs `pmset` with admin rights and reads other processes' metadata, so it has its own threat model:
+[SECURITY.md](SECURITY.md).
 
-[마일스톤](https://github.com/s3onghyun/bulchimbeon/milestones)으로 관리한다. 1.0 = 설정 키·실행 인자·근무일지 형식이 더 이상 바뀌지 않는다는 약속 ([호환성 약속](docs/compatibility.md), 변경 내역은 [CHANGELOG](CHANGELOG.md)).
+- No network access, no third-party dependencies
+- No shell-injection surface: absolute paths, minimal environment, the only variable value in the admin command is an integer PID
+- Never stores or prints other processes' arguments or environment; never reads AI transcripts
+- Hardened runtime, SHA-256 checksums and build provenance for releases, CI actions pinned by commit SHA
 
-- [x] 치비 이등병 픽셀아트, 순찰 모드, 한국어·영어
-- [x] 에이전트 **작업 중 / 대기 구분** (열려만 있는 세션은 세지 않음)
-- [x] Homebrew cask (개인 tap)
-- [ ] Apple 공증 + Homebrew 공식 cask (Developer ID 필요)
-- [ ] Privileged helper 로 덮개 모드 암호 프롬프트 제거
-- [ ] 해금 스킨: 순라꾼(조선시대 불침번), 선비(현량자고)
+## Development
 
-## 보안
+Only the Command Line Tools are needed, no Xcode.
 
-관리자 권한 `pmset` 실행과 프로세스 명령줄 읽기를 다루는 앱이라 위협 모델을 따로 정리했다 → [SECURITY.md](SECURITY.md)
+```bash
+make test       # unit + scenario tests
+make app        # dist/Bulchimbeon.app (ad-hoc signed)
+make run        # build and launch
+make icons      # regenerate the app icon and preview after editing sprites
 
-- 네트워크 통신 없음, 서드파티 의존성 0개
-- 셸 인젝션 불가 구조, 절대 경로 실행, 최소 환경변수
-- 프로세스 인자 원문은 저장·기록하지 않음, AI 대화 기록은 읽지 않음
-- hardened runtime 서명, 릴리스 SHA-256 체크섬·빌드 출처 증명, SHA 고정 CI
+# launch and start agent watch right away
+open dist/Bulchimbeon.app --args --agent-watch
 
-## 기여
+# print the engine's effects to stderr (for tracing)
+BULCHIMBEON_DEBUG=1 dist/Bulchimbeon.app/Contents/MacOS/Bulchimbeon
+```
 
-버그 신고(🚨 근무 태도 불량 신고), 에이전트 추가 요청, 대사·스프라이트 아이디어 모두 환영합니다 → [CONTRIBUTING.md](CONTRIBUTING.md)
+Want to help? Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 주의
+### Release (maintainer)
 
-덮개를 닫은 채 무거운 작업을 오래 돌리면 발열이 생긴다. 가능하면 전원을 연결하고 쓰자.
+```bash
+git tag vX.Y.Z && git push origin vX.Y.Z   # → the Release workflow builds, attests and uploads
+./scripts/bump-cask.sh X.Y.Z               # → verifies checksum and provenance, then updates homebrew-tap
+```
+
+Sprites are ASCII grids in `Sources/BulchimbeonCore/Sprites.swift`: one character per pixel, drawn as vector
+rectangles so both the 16 pt menu bar icon and the 1024 px app icon stay crisp.
+
+## Roadmap
+
+Tracked as [milestones](https://github.com/s3onghyun/bulchimbeon/milestones). 1.0 means settings keys, command-line
+flags and the duty log format stop changing: see the [compatibility promise](docs/compatibility.md) (in Korean; the
+tables are self-explanatory) and the [CHANGELOG](CHANGELOG.md).
+
+- [x] Pixel-art private, patrol mode, Korean/English UI
+- [x] Detect working vs. idle agents
+- [x] Homebrew cask (personal tap)
+- [ ] Apple notarization and the official Homebrew cask
+- [ ] Privileged helper to remove the admin prompt in lid-closed mode
+- [ ] Unlockable skins: Joseon night watchman, scholar
+
+## Contributing
+
+Bug reports ("🚨 soldier misbehaving"), agent requests, translation fixes, and ideas for lines or sprites are
+all welcome. Issues and PRs in English, Korean, Japanese or Chinese are fine. Look for
+[`good first issue`](https://github.com/s3onghyun/bulchimbeon/labels/good%20first%20issue) to get started, and read
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Caution
+
+Heavy, long-running work with the lid closed makes the Mac warm. Plug in power when you can.
 
 ## License
 

@@ -1,0 +1,42 @@
+name: "🌐 Translation fix / 번역 수정"
+description: "Awkward or wrong wording in a README or the app UI / README·앱 문구의 어색하거나 틀린 번역"
+title: "[Translation] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Small fixes are easiest as a PR directly; see [CONTRIBUTING.md → Translations](https://github.com/s3onghyun/bulchimbeon/blob/main/CONTRIBUTING.md#translations).
+        감사합니다! 작은 수정은 바로 PR 로 보내주셔도 됩니다. [CONTRIBUTING.md → 번역](https://github.com/s3onghyun/bulchimbeon/blob/main/CONTRIBUTING.md#번역)을 보세요.
+  - type: dropdown
+    id: where
+    attributes:
+      label: "Where? / 어디인가요?"
+      options:
+        - "README.md (English)"
+        - "README.ko.md (한국어)"
+        - "README.ja.md (日本語)"
+        - "README.zh-CN.md (简体中文)"
+        - "App UI: menu, notifications, speech bubbles / 앱 UI: 메뉴·알림·말풍선"
+        - "Other / 기타"
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: "Current text / 지금 문구"
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: suggested
+    attributes:
+      label: "Suggested text / 제안하는 문구"
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: "Why? (optional) / 이유 (선택)"
+      placeholder: "e.g. Sounds machine-translated; natives would say … / 예) 기계 번역 같고, 원어민은 … 라고 말한다"
